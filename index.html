@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Vein Pre-Authorization & Treatment Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)', surface: 'var(--surface)', sunken: 'var(--sunken)',
+          ink: 'var(--ink)', muted: 'var(--muted)', line: 'var(--line)',
+          accent: 'var(--accent)', 'accent-soft': 'var(--accent-soft)',
+          side: 'var(--side)', 'side-ink': 'var(--side-ink)',
+          danger: 'var(--danger)', 'danger-soft': 'var(--danger-soft)',
+          warn: 'var(--warn)', 'warn-soft': 'var(--warn-soft)',
+          ok: 'var(--ok)', 'ok-soft': 'var(--ok-soft)'
+        },
+        fontFamily: { sans: ['"Public Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] }
+      }
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons@4.29.2/dist/feather.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #EDF0F4; --surface: #FFFFFF; --sunken: #F5F7FA;
+    --ink: #172031; --muted: #5A6577; --line: #DCE1E8; --line-strong: #C3CAD5;
+    --accent: #2D4EA2; --accent-hover: #233F86; --accent-ink: #FFFFFF; --accent-soft: #E6ECF8;
+    --side: #14213A; --side-ink: #B9C4D8; --side-hover: #1D2D4C; --side-active: #263C66; --side-line: #22324F;
+    --danger: #B42318; --danger-soft: #FCEBE9; --warn: #A15C07; --warn-soft: #FDF1DC; --ok: #0E7660; --ok-soft: #E2F4EE;
+    --p-rfa: #C8582A; --p-varithena: #7448C2; --p-venaseal: #0F8A83;
+    --g-intake: #B07A16; --g-surgeon: #2D4EA2; --g-postop: #0E7660; --g-closed: #9C3A3A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #0E1420; --surface: #161F2F; --sunken: #121A28;
+      --ink: #E5EAF2; --muted: #97A2B4; --line: #26324A; --line-strong: #36445E;
+      --accent: #7E9CF0; --accent-hover: #9AB2F5; --accent-ink: #0E1420; --accent-soft: #1E2B48;
+      --side: #0A101B; --side-ink: #A3AEC2; --side-hover: #141D2E; --side-active: #1F3157; --side-line: #1A2438;
+      --danger: #F2877C; --danger-soft: #3A1D1D; --warn: #EDB45B; --warn-soft: #382A12; --ok: #5ACCA9; --ok-soft: #12302A;
+      --p-rfa: #E5814F; --p-varithena: #A584E6; --p-venaseal: #3DBDB3;
+      --g-intake: #DDA840; --g-surgeon: #7E9CF0; --g-postop: #5ACCA9; --g-closed: #DB7F7F;
+    }
+  }
+  :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  svg.feather { width: 16px; height: 16px; flex-shrink: 0; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .panel-h { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
+
+  .lbl { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+  .lbl .req { color: var(--danger); font-weight: 600; }
+  .lbl .opt { font-weight: 400; color: var(--muted); opacity: .8; }
+  .ctl { width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 13.5px; min-height: 36px; }
+  .ctl:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .ctl[aria-invalid="true"] { border-color: var(--danger); outline-color: var(--danger); }
+  textarea.ctl { min-height: 84px; resize: vertical; line-height: 1.55; }
+  .err { color: var(--danger); font-size: 12.5px; margin-top: 4px; }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-weight: 600; font-size: 13.5px; border-radius: 6px; padding: 8px 14px; border: 1px solid transparent; white-space: nowrap; cursor: pointer; transition: background-color .12s, border-color .12s; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-quiet { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+  .btn-quiet:hover { background: var(--sunken); }
+  .btn-export { background: var(--ok); color: #fff; }
+  .btn-export:hover { filter: brightness(1.08); }
+  @media (prefers-color-scheme: dark) { .btn-export { color: #0E1420; } }
+  .btn-danger { background: var(--surface); color: var(--danger); border-color: var(--line-strong); }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
+  .icon-btn:hover { background: var(--sunken); color: var(--ink); }
+  .icon-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--sunken); color: var(--ink); border: 1px solid var(--line); white-space: nowrap; }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.danger { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+  /* Sidebar */
+  .nav-group { font-size: 11.5px; font-weight: 600; color: var(--side-ink); opacity: .65; padding: 14px 12px 4px; }
+  .nav-item { position: relative; width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 6px; color: var(--side-ink); font-size: 13.5px; font-weight: 500; text-align: left; }
+  .nav-item:hover { background: var(--side-hover); color: #fff; }
+  .nav-item[aria-current="page"] { background: var(--side-active); color: #fff; }
+  .nav-item[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--nav-color, #8FA8EE); }
+  .nav-item .count { margin-left: auto; font-size: 12px; font-weight: 600; opacity: .8; }
+  .nav-item .dot { width: 7px; height: 7px; border-radius: 2px; background: var(--nav-color); flex-shrink: 0; }
+
+  /* Tables */
+  .tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  .tbl th { position: sticky; top: 0; z-index: 1; background: var(--sunken); text-align: left; font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: bottom; }
+  .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .tbl tbody tr { cursor: pointer; }
+  .tbl tbody tr:hover td { background: var(--sunken); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .compact .tbl td { padding-top: 6px; padding-bottom: 6px; }
+  .notes-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+
+  /* Vein map glyph: patient's right on viewer's left, like facing the patient */
+  .vg { display: grid; grid-template-columns: 14px repeat(4, 30px); gap: 3px; align-items: center; }
+  .vg .side { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+  .vg .ax { font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; }
+  .vg .c { height: 16px; border-radius: 3px; border: 1px dashed var(--line-strong); font-size: 10.5px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; }
+  .vg .c[data-p="RFA"] { background: var(--p-rfa); border: 0; }
+  .vg .c[data-p="Varithena"] { background: var(--p-varithena); border: 0; }
+  .vg .c[data-p="Venaseal"] { background: var(--p-venaseal); border: 0; }
+  @media (prefers-color-scheme: dark) { .vg .c { color: #0E1420; } }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  /* Vein schema editor: mirrored around a midline */
+  .vtable { width: 100%; border-collapse: collapse; min-width: 760px; }
+  .vtable th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px; text-align: left; }
+  .vtable td { padding: 5px 4px; }
+  .vtable .mid { text-align: center; width: 92px; background: var(--sunken); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  .vtable .mid b { display: block; font-size: 13.5px; }
+  .vtable .mid small { display: block; font-size: 11px; color: var(--muted); line-height: 1.25; }
+  .vtable .side-h { font-size: 13px; color: var(--ink); }
+  .vtable tbody tr + tr td { border-top: 1px solid var(--line); }
+  select.proc[data-proc="RFA"] { box-shadow: inset 4px 0 0 var(--p-rfa); }
+  select.proc[data-proc="Varithena"] { box-shadow: inset 4px 0 0 var(--p-varithena); }
+  select.proc[data-proc="Venaseal"] { box-shadow: inset 4px 0 0 var(--p-venaseal); }
+  .ctl.units { width: 74px; }
+
+  /* Follow-up milestone toggles */
+  .ms { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; white-space: nowrap; }
+  .ms-done { color: var(--ok); background: var(--ok-soft); }
+  .ms-overdue { color: var(--danger); background: var(--danger-soft); }
+  .ms-soon { color: var(--warn); background: var(--warn-soft); }
+  .ms-scheduled { color: var(--ink); border-color: var(--line-strong); }
+  .ms:hover { filter: brightness(.96); }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .kpi { padding: 16px 20px; text-align: left; border-left: 1px solid var(--line); }
+  .kpi:first-child { border-left: 0; }
+  .kpi .n { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .kpi .t { font-size: 13.5px; font-weight: 600; margin-top: 2px; }
+  .kpi .s { font-size: 12.5px; color: var(--muted); }
+  .kpi .bar { height: 3px; width: 28px; border-radius: 2px; margin-bottom: 10px; }
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpi:nth-child(3) { border-left: 0; }
+    .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+  }
+
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .thin-scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+
+  /* Modals */
+  .modal-wrap { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-start; justify-content: center; padding: 4vh 12px; background: rgba(10, 16, 27, .55); overflow-y: auto; }
+  .modal { width: 100%; background: var(--surface); border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 24px 60px -12px rgba(10, 16, 27, .45); animation: pop .16s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
+  .section-h { font-size: 13.5px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+  .toast { display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--surface); padding: 10px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px -10px rgba(0,0,0,.4); animation: pop .16s ease-out; }
+  .toast.error { background: var(--danger); color: #fff; }
+  .toast button { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+
+  #sidebar { transition: transform .2s ease; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- SIGN-IN -->
+<div id="login" class="min-h-full" hidden>
+  <div class="min-h-screen grid lg:grid-cols-[1fr_minmax(420px,520px)]">
+    <div class="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden" style="background: var(--side); color: #fff;">
+      <svg class="absolute -right-24 top-0 h-full opacity-[0.18]" viewBox="0 0 400 900" fill="none" aria-hidden="true">
+        <path d="M210 0 C 200 160, 230 260, 205 380 S 170 560, 190 700 S 215 840, 200 900" stroke="#8FA8EE" stroke-width="10" stroke-linecap="round"/>
+        <path d="M205 380 C 260 420, 300 470, 320 560 S 330 700, 350 900" stroke="#8FA8EE" stroke-width="6" stroke-linecap="round"/>
+        <path d="M190 700 C 140 740, 110 800, 90 900" stroke="#8FA8EE" stroke-width="5" stroke-linecap="round"/>
+        <path d="M212 210 C 160 240, 120 300, 70 330" stroke="#8FA8EE" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div class="flex items-center gap-3 relative">
+        <span class="brand-mark"></span>
+        <span class="font-semibold text-[15px]" data-practice></span>
+      </div>
+      <div class="relative max-w-md">
+        <h1 class="text-[34px] leading-[1.15] font-bold tracking-tight">Vein pre-authorization and treatment tracker</h1>
+        <p class="mt-4 text-[15px] leading-relaxed" style="color: var(--side-ink)">Follow every patient from promo inquiry through prior authorization, treatment and 12-month post-op follow-up.</p>
+      </div>
+      <p class="relative text-[12.5px]" style="color: var(--side-ink)">Records are stored in this browser only.</p>
+    </div>
+
+    <div class="flex items-center justify-center p-6 sm:p-10">
+      <div class="w-full max-w-[420px]">
+        <div class="lg:hidden flex items-center gap-3 mb-8">
+          <span class="brand-mark"></span>
+          <div>
+            <div class="font-bold">Vein tracker</div>
+            <div class="text-muted text-[12.5px]" data-practice></div>
+          </div>
+        </div>
+        <h2 class="text-[22px] font-bold tracking-tight">Sign in</h2>
+        <p class="text-muted mt-1">Use your authorized staff email.</p>
+        <form id="loginForm" class="mt-6 space-y-3" novalidate>
+          <label class="block">
+            <span class="lbl">Email</span>
+            <input id="loginEmail" type="email" autocomplete="email" class="ctl" placeholder="name@beltlinehealth.com" required>
+          </label>
+          <div id="loginError" class="err" role="alert" hidden></div>
+          <button type="submit" class="btn btn-primary w-full"><i data-feather="log-in"></i>Sign in</button>
+        </form>
+
+        <div class="mt-9">
+          <div class="flex items-baseline justify-between">
+            <h3 class="text-[13.5px] font-semibold">Quick sign-in</h3>
+            <span class="text-muted text-[12px]">For testing</span>
+          </div>
+          <div id="quickLogin" class="mt-2 panel divide-y thin-scroll max-h-[300px] overflow-y-auto" style="--tw-divide-opacity:1; border-color: var(--line)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="h-full" hidden>
+  <div class="h-full flex">
+    <div id="scrim" class="fixed inset-0 z-40 lg:hidden" style="background: rgba(10,16,27,.5)" hidden></div>
+
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-[252px] shrink-0 -translate-x-full lg:translate-x-0 flex flex-col" style="background: var(--side); padding-top: env(safe-area-inset-top, 0px);" aria-label="Main navigation">
+      <div class="px-5 pt-5 pb-3 flex items-center gap-3">
+        <span class="brand-mark"></span>
+        <div class="min-w-0">
+          <div class="text-white font-bold text-[14.5px] leading-tight">Vein tracker</div>
+          <div class="text-[12px] truncate" style="color: var(--side-ink)" data-practice></div>
+        </div>
+      </div>
+      <nav id="nav" class="flex-1 overflow-y-auto thin-scroll px-[10px] pb-4"></nav>
+      <div class="px-4 py-3 flex items-center gap-2" style="border-top: 1px solid var(--side-line)">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0" style="background: var(--side-active); color: #fff" id="userInitial"></div>
+        <div class="min-w-0 flex-1">
+          <div class="text-[12px]" style="color: var(--side-ink)">Signed in as</div>
+          <div class="text-white text-[12.5px] font-medium truncate" id="userEmail"></div>
+        </div>
+        <button id="logoutBtn" class="icon-btn" style="color: var(--side-ink)" aria-label="Sign out" title="Sign out"><i data-feather="log-out"></i></button>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col h-full">
+      <header class="shrink-0 border-b px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3" style="background: var(--surface); border-color: var(--line)">
+        <button id="menuBtn" class="icon-btn lg:hidden" aria-label="Open navigation"><i data-feather="menu"></i></button>
+        <div class="min-w-0 flex-1">
+          <h1 id="viewTitle" class="text-[19px] font-bold tracking-tight leading-tight truncate"></h1>
+          <p id="viewSub" class="text-muted text-[12.5px] truncate"></p>
+        </div>
+        <div id="searchWrap" class="relative w-full sm:w-64 order-last sm:order-none" hidden>
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"><i data-feather="search"></i></span>
+          <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search name, BBA ID, notes" aria-label="Search records in this tab">
+        </div>
+        <button id="exportBtn" class="btn btn-export" title="Download all tabs as an .xlsx workbook"><i data-feather="download"></i><span class="hidden sm:inline">Export to Spreadsheet</span><span class="sm:hidden">Export</span></button>
+        <button id="addBtn" class="btn btn-primary" hidden><i data-feather="plus"></i>Add record</button>
+      </header>
+
+      <main id="main" class="flex-1 overflow-y-auto thin-scroll">
+        <!-- Dashboard -->
+        <section id="view-dashboard" class="p-4 sm:p-6 space-y-5 max-w-[1400px]" hidden>
+          <div class="panel kpis overflow-hidden" id="kpis"></div>
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <section class="panel p-5 xl:col-span-2">
+              <div class="flex items-baseline justify-between gap-3">
+                <h2 class="panel-h">Patients by tab</h2>
+                <span class="text-muted text-[12.5px]">Select a bar to open that tab</span>
+              </div>
+              <div class="mt-4 relative h-[300px]"><canvas id="chart" aria-label="Bar chart of patients per tab" role="img"></canvas></div>
+              <div id="chartFallback" class="text-muted text-[13px] mt-2" hidden>The chart library did not load. Counts are shown in the sidebar.</div>
+            </section>
+            <section class="panel p-5">
+              <h2 class="panel-h">Upcoming follow-ups</h2>
+              <p class="text-muted text-[12.5px]">Open post-op milestones, earliest first</p>
+              <ul id="upcoming" class="mt-3 divide-y" style="border-color: var(--line)"></ul>
+            </section>
+            <section class="panel p-5">
+              <h2 class="panel-h">Procedure mix</h2>
+              <p class="text-muted text-[12.5px]">Planned or treated vein segments, all tabs</p>
+              <div id="procMix" class="mt-4 space-y-3"></div>
+            </section>
+            <section class="panel p-5 xl:col-span-2">
+              <h2 class="panel-h">Recently updated</h2>
+              <ul id="recent" class="mt-3 divide-y"></ul>
+            </section>
+          </div>
+        </section>
+
+        <!-- Patient list -->
+        <section id="view-list" class="p-4 sm:p-6 max-w-[1600px]" hidden>
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <p id="listMeta" class="text-muted text-[13px]"></p>
+            <div id="legend" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted"></div>
+          </div>
+          <div class="panel overflow-hidden">
+            <div class="scroll-x thin-scroll">
+              <table class="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+            </div>
+            <div id="empty" class="px-6 py-14 text-center" hidden></div>
+          </div>
+        </section>
+
+        <!-- Surgeons -->
+        <section id="view-surgeons" class="p-4 sm:p-6 max-w-[760px]" hidden>
+          <div class="panel">
+            <form id="surgeonForm" class="p-5 flex flex-col sm:flex-row gap-3 sm:items-end border-b" style="border-color: var(--line)" novalidate>
+              <label class="flex-1"><span class="lbl">Surgeon name</span><input id="surgeonInput" class="ctl" placeholder="e.g. Dr. Jane Smith"></label>
+              <button class="btn btn-primary"><i data-feather="plus"></i>Add surgeon</button>
+            </form>
+            <div id="surgeonErr" class="err px-5 pt-2" hidden></div>
+            <ul id="surgeonList" class="divide-y"></ul>
+            <div class="p-5 border-t flex justify-between items-center gap-3 flex-wrap" style="border-color: var(--line)">
+              <p class="text-muted text-[12.5px]">Removing a surgeon keeps them on existing records.</p>
+              <button id="resetSurgeons" class="btn btn-quiet"><i data-feather="rotate-ccw"></i>Restore default roster</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Users -->
+        <section id="view-users" class="p-4 sm:p-6 max-w-[760px]" hidden>
+          <div class="panel">
+            <form id="userForm" class="p-5 flex flex-col sm:flex-row gap-3 sm:items-end border-b" style="border-color: var(--line)" novalidate>
+              <label class="flex-1"><span class="lbl">Staff email</span><input id="userInput" type="email" class="ctl" placeholder="name@beltlinehealth.com"></label>
+              <button class="btn btn-primary"><i data-feather="user-plus"></i>Authorize email</button>
+            </form>
+            <div id="userErr" class="err px-5 pt-2" hidden></div>
+            <ul id="userList" class="divide-y"></ul>
+            <div class="p-5 border-t flex justify-between items-center gap-3 flex-wrap" style="border-color: var(--line)">
+              <p class="text-muted text-[12.5px]">Only these emails can sign in on this browser.</p>
+              <button id="resetUsers" class="btn btn-quiet"><i data-feather="rotate-ccw"></i>Restore default 10 users</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="view-settings" class="p-4 sm:p-6 max-w-[760px] space-y-5" hidden>
+          <form id="settingsForm" class="panel p-5 space-y-4" novalidate>
+            <h2 class="panel-h">General</h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <label><span class="lbl">Practice name</span><input name="practiceName" class="ctl"></label>
+              <label><span class="lbl">Default promo location</span>
+                <select name="defaultLocation" class="ctl"><option>ATL</option><option>STB</option><option>Newnan</option></select></label>
+              <label><span class="lbl">Spreadsheet file name</span><input name="exportPrefix" class="ctl"><span class="text-muted text-[12px]">Today’s date is added to the end.</span></label>
+              <label class="flex items-center gap-2 sm:mt-6"><input type="checkbox" name="compactRows"><span>Compact table rows</span></label>
+            </div>
+            <div class="flex justify-end"><button class="btn btn-primary"><i data-feather="check"></i>Save settings</button></div>
+          </form>
+
+          <div class="panel p-5 space-y-4">
+            <h2 class="panel-h">Data</h2>
+            <p class="text-muted text-[13px] max-w-prose">Everything is saved in this browser’s local storage. Download a backup regularly; clearing browser data erases records.</p>
+            <div class="flex flex-wrap gap-2">
+              <button id="backupBtn" class="btn btn-quiet"><i data-feather="save"></i>Download backup</button>
+              <label class="btn btn-quiet"><i data-feather="upload"></i>Restore from backup<input id="restoreInput" type="file" accept=".json,application/json" class="sr-only"></label>
+              <button id="removeDemoBtn" class="btn btn-quiet"><i data-feather="filter"></i>Remove demo records</button>
+            </div>
+            <div class="pt-4 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--line)">
+              <p class="text-[13px]"><b>Delete all patient records.</b> <span class="text-muted">Users, surgeons and settings are kept.</span></p>
+              <button id="wipeBtn" class="btn btn-danger"><i data-feather="trash-2"></i>Delete all records</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toasts" class="fixed bottom-4 right-4 z-[80] flex flex-col gap-2 items-end" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   Constants
+   ============================================================ */
+const LS = {
+  // Own prefix: every site under YOUR-USERNAME.github.io shares one browser storage area,
+  // so these keys must not collide with other trackers published there.
+  patients: 'vct_pages_patients',
+  surgeons: 'vct_pages_surgeons',
+  users: 'vct_pages_users',
+  settings: 'vct_pages_settings'
+};
+const SESSION_KEY = 'vct_pages_session';
+
+const DEFAULT_USERS = [
+  'Dianaw@beltlinehealth.com',
+  'alnisah@beltlinehealth.com',
+  'taquoyap@beltlinehealth.com',
+  'cproctermd@beltlinehealth.com',
+  'vdanmd@beltlinehealth.com',
+  'virtualstaff.miranda.09042024@gmail.com',
+  'youroutsourcedexpert@gmail.com',
+  'virtualstaff.benedicto.05202024@gmail.com',
+  'Corbin@smb-sc.com',
+  'virtualstaff.wenceslao.011325@gmail.com'
+];
+const DEFAULT_SURGEONS = ['Dr. Charles Procter', 'Dr. V. Danthuluri'];
+const DEFAULT_SETTINGS = { practiceName: 'Beltline Health', defaultLocation: 'ATL', exportPrefix: 'Vein_PreAuth_Tracker', compactRows: false };
+
+const GROUPS = { intake: 'Intake', surgeon: 'Surgeon queues', postop: 'Post-op', closed: 'Closed' };
+const TABS = [
+  { key: 'Promo', group: 'intake', type: 'promo', nameRequired: false, icon: 'tag',
+    blurb: 'Promo inquiries and ultrasound scheduling. Name and BBA ID are optional.' },
+  { key: 'Procter Pay Attention', group: 'intake', type: 'clinical', nameRequired: false, icon: 'flag',
+    blurb: 'Cases flagged for Dr. Procter’s review. Name and BBA ID are optional.' },
+  { key: 'Dr. Procter', group: 'surgeon', type: 'clinical', nameRequired: true, icon: 'user', surgeonMatch: /procter/i,
+    blurb: 'Pre-authorization queue for Dr. Procter. Patient name is required.' },
+  { key: 'Dr. Danthuluri', group: 'surgeon', type: 'clinical', nameRequired: true, icon: 'user', surgeonMatch: /danthuluri/i,
+    blurb: 'Pre-authorization queue for Dr. Danthuluri. Patient name is required.' },
+  { key: 'PO Vein FU', group: 'postop', type: 'po', nameRequired: true, icon: 'calendar',
+    blurb: 'Post-op follow-up at 30 days, 3, 6 and 12 months. Patient name is required.' },
+  { key: 'PA DENIED', group: 'closed', type: 'clinical', nameRequired: true, icon: 'x-octagon',
+    blurb: 'Prior authorizations that were denied. Patient name is required.' },
+  { key: 'Not Interested Now or excluded', group: 'closed', type: 'clinical', nameRequired: true, icon: 'pause-circle',
+    blurb: 'Patients who declined for now or were excluded. Patient name is required.' }
+];
+const TAB = Object.fromEntries(TABS.map(t => [t.key, t]));
+const ADMIN = [
+  { key: 'surgeons', label: 'Surgeon roster', icon: 'briefcase', blurb: 'Surgeons available on clinical records.' },
+  { key: 'users', label: 'Authorized users', icon: 'shield', blurb: 'Staff emails allowed to sign in.' },
+  { key: 'settings', label: 'Settings', icon: 'settings', blurb: 'Practice details, export options and data backup.' }
+];
+
+const VEINS = [
+  { k: 'gsv', label: 'GSV', full: 'Great saphenous' },
+  { k: 'ssv', label: 'SSV', full: 'Small saphenous' },
+  { k: 'pasv', label: 'PASV', full: 'Accessory saphenous' },
+  { k: 'btk', label: 'BTK', full: 'Below the knee' }
+];
+const SIDES = [{ k: 'r', label: 'Right' }, { k: 'l', label: 'Left' }];
+const VEIN_KEYS = SIDES.flatMap(s => VEINS.map(v => `${s.k}_${v.k}`));
+const PROCS = ['None', 'RFA', 'Varithena', 'Venaseal'];
+const POST_STATUS = [
+  { v: '', l: 'Not started' }, { v: 'Ordered', l: 'Ordered' }, { v: 'Scheduled', l: 'Scheduled' },
+  { v: 'Completed', l: 'Completed' }, { v: 'Not needed', l: 'Not needed' }
+];
+const MILESTONES = [
+  { k: 'po30Day', label: '30-day PO', days: 30 },
+  { k: 'po3Month', label: '3-month PO', days: 90 },
+  { k: 'po6Month', label: '6-month PO', days: 180 },
+  { k: 'po12Month', label: '12-month PO', days: 365 }
+];
+const LOCATIONS = ['ATL', 'STB', 'Newnan'];
+const IV_OPTIONS = ['', 'IV', 'Vanquish', 'Both', 'None'];
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const localISO = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const addDays = (n, from = new Date()) => localISO(new Date(from.getTime() + n * 864e5));
+const uid = () => 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const fmtDate = iso => {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d) ? String(iso) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const daysFromToday = iso => Math.round((new Date(iso + 'T00:00:00') - new Date(localISO() + 'T00:00:00')) / 864e5);
+const relTime = ts => {
+  if (!ts) return '';
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  const d = Math.round(h / 24);
+  return d < 30 ? `${d} day${d > 1 ? 's' : ''} ago` : new Date(ts).toLocaleDateString();
+};
+const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const sameEmail = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+const icons = () => { if (window.feather) feather.replace({ 'stroke-width': 1.9 }); };
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const groupColorVar = g => `--g-${g}`;
+const treated = p => VEIN_KEYS.filter(vk => p[`${vk}_proc`] && p[`${vk}_proc`] !== 'None');
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function store(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch (e) { toast('Could not save. Browser storage is full or blocked.', { type: 'error' }); return false; }
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  users: [], surgeons: [], patients: [], settings: { ...DEFAULT_SETTINGS },
+  user: null, view: 'dashboard', search: '', chart: null
+};
+
+function demoRecords() {
+  const now = Date.now();
+  const recs = [
+    { category: 'Promo', name: '', bbaId: '', insurance: 'BCBS', location: 'ATL', datePromo: addDays(-6), ivVanquish: 'IV', usDate: addDays(3), notes: 'Inquiry from community screening event.' },
+    { category: 'Promo', name: 'Demo Patient H', bbaId: '', insurance: 'Aetna', location: 'Newnan', datePromo: addDays(-2), ivVanquish: 'Vanquish', usDate: '', notes: '' },
+    { category: 'Procter Pay Attention', name: '', bbaId: 'BBA-1120', r_gsv_proc: 'RFA', r_gsv_units: 1, notes: 'Review prior ultrasound before scheduling.' },
+    { category: 'Dr. Procter', name: 'Demo Patient B', bbaId: 'BBA-1042', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Scheduled', l_gsv_proc: 'RFA', l_gsv_units: 1, l_ssv_proc: 'Varithena', l_ssv_units: 2, notes: 'Authorization submitted.' },
+    { category: 'Dr. Danthuluri', name: 'Demo Patient C', bbaId: 'BBA-1077', surgeon: 'Dr. V. Danthuluri', l_pasv_proc: 'Venaseal', l_pasv_units: 1, r_btk_proc: 'Varithena', r_btk_units: 3, r_btk_post: 'Ordered', notes: '' },
+    { category: 'PO Vein FU', name: 'Demo Patient D', bbaId: 'BBA-0988', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Completed', po30Day: addDays(-40), po30DayDone: true, po3Month: addDays(5), po6Month: addDays(95), po12Month: addDays(280), notes: '' },
+    { category: 'PO Vein FU', name: 'Demo Patient E', bbaId: '', surgeon: 'Dr. V. Danthuluri', l_gsv_proc: 'Venaseal', l_gsv_units: 1, l_gsv_post: 'Completed', po30Day: addDays(-3), po3Month: addDays(57), po6Month: addDays(147), po12Month: addDays(332), poNewVeinsFlag: true, poNewVeins: 'Possible right SSV reflux, recheck at 3 months.', notes: '' },
+    { category: 'PA DENIED', name: 'Demo Patient F', bbaId: 'BBA-1101', surgeon: 'Dr. Charles Procter', r_ssv_proc: 'RFA', r_ssv_units: 1, notes: 'Denied: conservative therapy not documented. Appeal pending.' },
+    { category: 'Not Interested Now or excluded', name: 'Demo Patient G', bbaId: '', notes: 'Asked to revisit in spring.' }
+  ];
+  return recs.map((r, i) => ({ id: uid() + i, demo: true, createdAt: now - i * 5e6, updatedAt: now - i * 5e6, updatedBy: 'Demo data', ...r }));
+}
+
+function normalizePatient(p) {
+  const out = { ...p };
+  if (!out.id) out.id = uid();
+  if (!TAB[out.category]) out.category = 'Procter Pay Attention';
+  VEIN_KEYS.forEach(vk => {
+    const u = out[`${vk}_units`];
+    if (typeof u === 'string' && u.trim() !== '') {
+      const n = parseFloat(u);
+      out[`${vk}_units`] = isNaN(n) ? '' : n;
+    }
+  });
+  return out;
+}
+
+function loadAll() {
+  state.users = load(LS.users, null) || [...DEFAULT_USERS];
+  state.surgeons = load(LS.surgeons, null) || [...DEFAULT_SURGEONS];
+  state.settings = { ...DEFAULT_SETTINGS, ...(load(LS.settings, {}) || {}) };
+  const saved = load(LS.patients, null);
+  if (Array.isArray(saved)) {
+    state.patients = saved.map(normalizePatient);
+  } else {
+    state.patients = demoRecords();
+    store(LS.patients, state.patients);
+  }
+  if (!localStorage.getItem(LS.users)) store(LS.users, state.users);
+  if (!localStorage.getItem(LS.surgeons)) store(LS.surgeons, state.surgeons);
+}
+const savePatients = () => store(LS.patients, state.patients);
+const saveUsers = () => store(LS.users, state.users);
+const saveSurgeons = () => store(LS.surgeons, state.surgeons);
+const saveSettings = () => store(LS.settings, state.settings);
+
+/* ============================================================
+   Toasts
+   ============================================================ */
+function toast(msg, opts = {}) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (opts.type === 'error' ? ' error' : '');
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (opts.action) {
+    const b = document.createElement('button');
+    b.textContent = opts.action.label;
+    b.onclick = () => { opts.action.run(); el.remove(); };
+    el.appendChild(b);
+  }
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), opts.duration || 4500);
+}
+
+/* ============================================================
+   Auth
+   ============================================================ */
+function renderLogin() {
+  $('#quickLogin').innerHTML = state.users.map(u => `
+    <button type="button" data-quick="${esc(u)}" class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-sunken" style="border-color: var(--line)">
+      <span class="w-7 h-7 rounded-full flex items-center justify-center text-[11.5px] font-bold shrink-0" style="background: var(--accent-soft); color: var(--accent)">${esc(u[0].toUpperCase())}</span>
+      <span class="truncate text-[13px]">${esc(u)}</span>
+      <span class="ml-auto text-muted"><i data-feather="log-in"></i></span>
+    </button>`).join('');
+}
+
+function signIn(email) {
+  const match = state.users.find(u => sameEmail(u, email.trim()));
+  const err = $('#loginError');
+  if (!email.trim()) { err.textContent = 'Enter your email address.'; err.hidden = false; return; }
+  if (!match) {
+    err.textContent = 'This email is not on the authorized list. Ask an administrator to add it under Authorized users.';
+    err.hidden = false;
+    $('#loginEmail').setAttribute('aria-invalid', 'true');
+    return;
+  }
+  err.hidden = true;
+  $('#loginEmail').removeAttribute('aria-invalid');
+  sessionStorage.setItem(SESSION_KEY, match);
+  startSession(match);
+}
+
+function startSession(email) {
+  state.user = email;
+  $('#login').hidden = true;
+  $('#app').hidden = false;
+  $('#userEmail').textContent = email;
+  $('#userInitial').textContent = email[0].toUpperCase();
+  render();
+}
+
+function signOut() {
+  sessionStorage.removeItem(SESSION_KEY);
+  state.user = null;
+  closeModal();
+  $('#app').hidden = true;
+  $('#login').hidden = false;
+  $('#loginEmail').value = '';
+  renderLogin();
+  icons();
+}
+
+/* ============================================================
+   Navigation & layout
+   ============================================================ */
+function viewKind() { return TAB[state.view] ? 'list' : state.view; }
+
+function navigate(view) {
+  state.view = view;
+  state.search = '';
+  $('#search').value = '';
+  closeSidebar();
+  render();
+  $('#main').scrollTop = 0;
+}
+
+function openSidebar() { $('#sidebar').classList.remove('-translate-x-full'); $('#scrim').hidden = false; }
+function closeSidebar() { $('#sidebar').classList.add('-translate-x-full'); $('#scrim').hidden = true; }
+
+function renderSidebar() {
+  const count = k => state.patients.filter(p => p.category === k).length;
+  const item = (key, label, icon, extra = '', color = '') => `
+    <button class="nav-item" data-nav="${esc(key)}" ${state.view === key ? 'aria-current="page"' : ''} ${color ? `style="--nav-color: var(${color})"` : ''}>
+      <i data-feather="${icon}"></i><span class="truncate">${esc(label)}</span>${extra}
+    </button>`;
+  let html = `<div class="pt-2">${item('dashboard', 'Dashboard', 'bar-chart-2')}</div>`;
+  Object.entries(GROUPS).forEach(([g, gl]) => {
+    html += `<div class="nav-group">${gl}</div>`;
+    TABS.filter(t => t.group === g).forEach(t => {
+      html += item(t.key, t.key, t.icon, `<span class="count">${count(t.key)}</span>`, groupColorVar(g));
+    });
+  });
+  html += `<div class="nav-group">Administration</div>`;
+  ADMIN.forEach(a => {
+    const extra = a.key === 'users' ? `<span class="count">${state.users.length}</span>` : a.key === 'surgeons' ? `<span class="count">${state.surgeons.length}</span>` : '';
+    html += item(a.key, a.label, a.icon, extra);
+  });
+  $('#nav').innerHTML = html;
+  document.querySelectorAll('[data-practice]').forEach(el => el.textContent = state.settings.practiceName);
+}
+
+function renderHeader() {
+  const kind = viewKind();
+  const t = TAB[state.view];
+  const admin = ADMIN.find(a => a.key === state.view);
+  $('#viewTitle').textContent = t ? t.key : admin ? admin.label : 'Dashboard';
+  $('#viewSub').textContent = t ? t.blurb : admin ? admin.blurb : `Pre-authorization and treatment overview, ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`;
+  $('#searchWrap').hidden = kind !== 'list';
+  $('#addBtn').hidden = kind !== 'list';
+}
+
+function render() {
+  if (!state.user) return;
+  document.body.classList.toggle('compact', !!state.settings.compactRows);
+  renderSidebar();
+  renderHeader();
+  const kind = viewKind();
+  ['dashboard', 'list', 'surgeons', 'users', 'settings'].forEach(v => $('#view-' + v).hidden = kind !== v);
+  if (kind === 'dashboard') renderDashboard();
+  if (kind === 'list') renderList();
+  if (kind === 'surgeons') renderSurgeons();
+  if (kind === 'users') renderUsers();
+  if (kind === 'settings') renderSettings();
+  icons();
+}
+
+/* ============================================================
+   Dashboard
+   ============================================================ */
+function openMilestones() {
+  const out = [];
+  state.patients.filter(p => p.category === 'PO Vein FU').forEach(p => {
+    MILESTONES.forEach(m => {
+      if (p[m.k] && !p[m.k + 'Done']) out.push({ p, m, date: p[m.k], diff: daysFromToday(p[m.k]) });
+    });
+  });
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function renderDashboard() {
+  const P = state.patients;
+  const by = k => P.filter(p => p.category === k).length;
+  const active = ['Promo', 'Procter Pay Attention', 'Dr. Procter', 'Dr. Danthuluri'].reduce((s, k) => s + by(k), 0);
+  const po = by('PO Vein FU');
+  const overdue = openMilestones().filter(x => x.diff < 0).length;
+  const denied = by('PA DENIED'), notInt = by('Not Interested Now or excluded');
+
+  const kpi = (n, t, s, color, nav) => `
+    <button class="kpi hover:bg-sunken" ${nav ? `data-nav="${esc(nav)}"` : 'disabled style="cursor:default"'}>
+      <div class="bar" style="background: var(${color})"></div>
+      <div class="n">${n}</div><div class="t">${t}</div><div class="s">${s}</div>
+    </button>`;
+  $('#kpis').innerHTML =
+    kpi(P.length, 'Total patients', `Across ${TABS.length} tabs`, '--accent', null) +
+    kpi(active, 'Active workflows', `${by('Dr. Procter') + by('Dr. Danthuluri')} in surgeon queues`, '--g-surgeon', 'Dr. Procter') +
+    kpi(po, 'Post-op follow-ups', overdue ? `<span style="color: var(--danger); font-weight:600">${overdue} milestone${overdue > 1 ? 's' : ''} overdue</span>` : 'No overdue milestones', '--g-postop', 'PO Vein FU') +
+    kpi(denied + notInt, 'Denied or excluded', `${denied} denied, ${notInt} not interested`, '--g-closed', 'PA DENIED');
+
+  renderChart();
+
+  // Upcoming milestones
+  const up = openMilestones().slice(0, 7);
+  $('#upcoming').innerHTML = up.length ? up.map(({ p, m, date, diff }) => {
+    const chip = diff < 0 ? `<span class="chip danger">${-diff} day${diff < -1 ? 's' : ''} overdue</span>`
+      : diff === 0 ? `<span class="chip warn">Today</span>`
+      : diff <= 14 ? `<span class="chip warn">In ${diff} day${diff > 1 ? 's' : ''}</span>`
+      : `<span class="chip">${esc(fmtDate(date))}</span>`;
+    return `<li style="border-color: var(--line)"><button class="w-full text-left py-2.5 flex items-center gap-3" data-edit="${p.id}">
+      <div class="min-w-0 flex-1"><div class="font-semibold truncate">${esc(p.name || 'Unnamed patient')}</div>
+      <div class="text-muted text-[12.5px]">${m.label}, ${esc(fmtDate(date))}</div></div>${chip}</button></li>`;
+  }).join('') : `<li class="py-6 text-muted text-[13px]">No open milestones. Add dates on PO Vein FU records to see them here.</li>`;
+
+  // Procedure mix
+  const counts = { RFA: 0, Varithena: 0, Venaseal: 0 };
+  let postDone = 0, segs = 0;
+  P.forEach(p => treated(p).forEach(vk => {
+    const pr = p[`${vk}_proc`]; if (counts[pr] !== undefined) counts[pr]++;
+    segs++; if (p[`${vk}_post`] === 'Completed') postDone++;
+  }));
+  const max = Math.max(1, ...Object.values(counts));
+  const pVar = { RFA: '--p-rfa', Varithena: '--p-varithena', Venaseal: '--p-venaseal' };
+  $('#procMix').innerHTML = Object.entries(counts).map(([k, v]) => `
+    <div><div class="flex justify-between text-[13px]"><span class="font-medium">${k}</span><span class="font-semibold">${v}</span></div>
+    <div class="h-2 rounded-full mt-1" style="background: var(--sunken)"><div class="h-2 rounded-full" style="width:${(v / max) * 100}%; background: var(${pVar[k]})"></div></div></div>`).join('') +
+    `<p class="text-muted text-[12.5px] pt-2 border-t" style="border-color: var(--line)">POST AB US completed on ${postDone} of ${segs} segment${segs === 1 ? '' : 's'}.</p>`;
+
+  // Recent
+  const recent = [...P].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6);
+  $('#recent').innerHTML = recent.length ? recent.map(p => `
+    <li style="border-color: var(--line)"><button class="w-full text-left py-2.5 flex items-center gap-3 flex-wrap" data-edit="${p.id}">
+      <span class="swatch" style="background: var(${groupColorVar(TAB[p.category].group)})"></span>
+      <span class="font-semibold">${esc(p.name || 'Unnamed patient')}</span>
+      <span class="text-muted text-[13px]">${esc(p.category)}</span>
+      <span class="ml-auto text-muted text-[12.5px]">${esc(relTime(p.updatedAt))}${p.updatedBy ? ', ' + esc(p.updatedBy) : ''}</span>
+    </button></li>`).join('') : `<li class="py-6 text-muted text-[13px]">No records yet. Open a tab and choose Add record.</li>`;
+}
+
+function chartLabel(k) {
+  if (k.length <= 14) return k;
+  const words = k.split(' '); const lines = []; let cur = '';
+  words.forEach(w => { if ((cur + ' ' + w).trim().length > 16) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; });
+  if (cur.trim()) lines.push(cur.trim());
+  return lines;
+}
+
+function renderChart() {
+  if (!window.Chart) { $('#chartFallback').hidden = false; return; }
+  const data = TABS.map(t => state.patients.filter(p => p.category === t.key).length);
+  if (state.chart) {
+    state.chart.data.datasets[0].data = data;
+    state.chart.update();
+    return;
+  }
+  const muted = cssVar('--muted'), line = cssVar('--line');
+  state.chart = new Chart($('#chart'), {
+    type: 'bar',
+    data: {
+      labels: TABS.map(t => chartLabel(t.key)),
+      datasets: [{ label: 'Patients', data, backgroundColor: TABS.map(t => cssVar(groupColorVar(t.group))), borderRadius: 4, maxBarThickness: 56 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 350 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { title: items => TABS[items[0].dataIndex].key, label: i => ` ${i.raw} patient${i.raw === 1 ? '' : 's'}` } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0, color: muted }, grid: { color: line }, border: { display: false } },
+        x: { ticks: { color: muted, font: { size: 11.5 }, maxRotation: 0, autoSkip: false }, grid: { display: false } }
+      },
+      onClick: (e, els) => { if (els.length) navigate(TABS[els[0].index].key); },
+      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
+    }
+  });
+}
+
+/* ============================================================
+   Patient list
+   ============================================================ */
+const dash = v => (v === undefined || v === null || v === '') ? '<span class="text-muted">–</span>' : esc(v);
+const nameCell = p => p.name ? `<div class="font-semibold">${esc(p.name)}</div>` : `<div class="text-muted italic">Unnamed</div>`;
+const dateCell = d => d ? `<span class="whitespace-nowrap">${esc(fmtDate(d))}</span>` : dash();
+const notesCell = p => p.notes ? `<div class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</div>` : dash();
+
+const VEIN_HEAD = `<div class="vg" aria-hidden="true"><span></span>${VEINS.map(v => `<span class="ax">${v.label}</span>`).join('')}</div><div class="mt-0.5">Vein map</div>`;
+function veinGlyph(p) {
+  const desc = [];
+  const rows = SIDES.map(s => `<span class="side">${s.label[0]}</span>` + VEINS.map(v => {
+    const vk = `${s.k}_${v.k}`, pr = p[`${vk}_proc`], u = p[`${vk}_units`];
+    const on = pr && pr !== 'None';
+    if (on) desc.push(`${s.label} ${v.label}: ${pr}${u !== '' && u != null ? `, ${u} units` : ''}${p[`${vk}_post`] ? `, POST AB US ${p[`${vk}_post`]}` : ''}`);
+    return `<span class="c" ${on ? `data-p="${esc(pr)}"` : ''} title="${esc(`${s.label} ${v.label}: ${on ? pr : 'None'}${on && u !== '' && u != null ? `, ${u} units` : ''}`)}">${on && u !== '' && u != null ? esc(u) : ''}</span>`;
+  }).join('')).join('');
+  return `<div class="vg" role="img" aria-label="${esc(desc.length ? desc.join('; ') : 'No veins planned')}">${rows}</div>`;
+}
+function postSummary(p) {
+  const t = treated(p);
+  if (!t.length) return dash();
+  const done = t.filter(vk => p[`${vk}_post`] === 'Completed').length;
+  const cls = done === t.length ? 'ok' : done ? 'warn' : '';
+  return `<span class="chip ${cls}">${done} of ${t.length} done</span>`;
+}
+function msCell(p, k) {
+  const date = p[k], done = !!p[k + 'Done'];
+  if (!date && !done) return dash();
+  let status = 'scheduled';
+  if (done) status = 'done';
+  else { const d = daysFromToday(date); status = d < 0 ? 'overdue' : d <= 14 ? 'soon' : 'scheduled'; }
+  const label = date ? fmtDate(date) : 'Done';
+  return `<button class="ms ms-${status}" data-ms="${k}" data-id="${p.id}" aria-pressed="${done}" title="${done ? 'Completed. Select to mark not done.' : 'Select to mark completed.'}"><i data-feather="${done ? 'check-circle' : 'circle'}"></i>${esc(label)}</button>`;
+}
+
+function columns(type) {
+  const base = [{ h: 'Patient', c: nameCell }, { h: 'BBA ID', c: p => dash(p.bbaId) }];
+  if (type === 'promo') return [...base,
+    { h: 'Insurance', c: p => dash(p.insurance) },
+    { h: 'Location', c: p => p.location ? `<span class="chip accent">${esc(p.location)}</span>` : dash() },
+    { h: 'Date promo', c: p => dateCell(p.datePromo) },
+    { h: 'IV or Vanquish', c: p => dash(p.ivVanquish) },
+    { h: 'US date', c: p => dateCell(p.usDate) },
+    { h: 'Notes', c: notesCell }];
+  const clin = [...base,
+    { h: 'Surgeon', c: p => dash(p.surgeon) },
+    { h: VEIN_HEAD, c: veinGlyph, raw: true }];
+  if (type === 'clinical') return [...clin, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
+  return [...clin,
+    ...MILESTONES.map(m => ({ h: m.label, c: p => msCell(p, m.k) })),
+    { h: 'New veins', c: p => p.poNewVeinsFlag ? `<span class="chip warn" title="${esc(p.poNewVeins || '')}">Yes</span>` : dash() },
+    { h: 'Notes', c: notesCell }];
+}
+
+function rowsFor(tabKey) {
+  const q = state.search.toLowerCase().trim();
+  return state.patients
+    .filter(p => p.category === tabKey)
+    .filter(p => !q || [p.name, p.bbaId, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins]
+      .some(v => String(v || '').toLowerCase().includes(q)))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function renderList() {
+  const tab = TAB[state.view];
+  const cols = columns(tab.type);
+  const rows = rowsFor(tab.key);
+  const total = state.patients.filter(p => p.category === tab.key).length;
+
+  $('#listMeta').textContent = state.search
+    ? `${rows.length} of ${total} record${total === 1 ? '' : 's'} match “${state.search}”`
+    : `${total} record${total === 1 ? '' : 's'}, most recently updated first`;
+  $('#legend').innerHTML = tab.type === 'promo' ? '' :
+    PROCS.slice(1).map(p => `<span class="inline-flex items-center gap-1.5"><span class="swatch" style="background: var(--p-${p.toLowerCase()})"></span>${p}</span>`).join('') +
+    `<span>Numbers are units</span>`;
+
+  $('#thead').innerHTML = `<tr>${cols.map(c => `<th>${c.raw ? c.h : esc(c.h)}</th>`).join('')}<th class="text-right"><span class="sr-only">Actions</span></th></tr>`;
+  $('#tbody').innerHTML = rows.map(p => `
+    <tr data-row="${p.id}">
+      ${cols.map(c => `<td>${c.c(p)}</td>`).join('')}
+      <td class="text-right whitespace-nowrap">
+        <button class="icon-btn" data-notes="${p.id}" aria-label="Edit notes" title="Notes"><i data-feather="file-text"></i></button>
+        <button class="icon-btn" data-move="${p.id}" aria-label="Move to another tab" title="Move to tab"><i data-feather="corner-up-right"></i></button>
+        <button class="icon-btn" data-edit="${p.id}" aria-label="Edit record" title="Edit"><i data-feather="edit-2"></i></button>
+        <button class="icon-btn danger" data-del="${p.id}" aria-label="Delete record" title="Delete"><i data-feather="trash-2"></i></button>
+      </td>
+    </tr>`).join('');
+
+  const empty = $('#empty');
+  empty.hidden = rows.length > 0;
+  $('#thead').parentElement.hidden = rows.length === 0;
+  if (!rows.length) {
+    empty.innerHTML = state.search
+      ? `<p class="font-semibold">No records in ${esc(tab.key)} match “${esc(state.search)}”.</p>
+         <p class="text-muted mt-1">Check the spelling or search by BBA ID.</p>
+         <button class="btn btn-quiet mt-4" data-clear-search>Clear search</button>`
+      : `<p class="font-semibold">${esc(tab.key)} has no records yet.</p>
+         <p class="text-muted mt-1">${tab.nameRequired ? 'Each record needs a patient name.' : 'You can save a record without a name or BBA ID.'}</p>
+         <button class="btn btn-primary mt-4" data-add><i data-feather="plus"></i>Add record</button>`;
+  }
+}
+
+/* ============================================================
+   Record form
+   ============================================================ */
+const field = (label, inner, opts = {}) =>
+  `<label class="block ${opts.cls || ''}"><span class="lbl">${label}${opts.req ? ' <span class="req">*</span>' : opts.opt ? ' <span class="opt">(optional)</span>' : ''}</span>${inner}${opts.err ? `<div class="err" data-err="${opts.err}" hidden></div>` : ''}</label>`;
+const input = (name, val, type = 'text', extra = '', cls = 'ctl') =>
+  `<input name="${name}" type="${type}" value="${esc(val ?? '')}" class="${cls}" ${extra}>`;
+function select(name, options, val, extra = '', cls = 'ctl') {
+  const opts = options.map(o => typeof o === 'object' ? o : { v: o, l: o || 'Select' });
+  const cur = val ?? '';
+  if (cur !== '' && !opts.some(o => String(o.v) === String(cur))) opts.push({ v: cur, l: `${cur} (previous value)` });
+  return `<select name="${name}" class="${cls}" ${extra}>${opts.map(o => `<option value="${esc(o.v)}" ${String(o.v) === String(cur) ? 'selected' : ''}>${esc(o.l)}</option>`).join('')}</select>`;
+}
+
+function veinSchemaEditor(r) {
+  const cellsFor = (s, v, mirror) => {
+    const vk = `${s.k}_${v.k}`;
+    const proc = r[`${vk}_proc`] || 'None';
+    const tds = [
+      `<td>${select(`${vk}_proc`, PROCS, proc, `data-proc="${esc(proc)}" aria-label="${s.label} ${v.label} procedure"`, 'ctl proc')}</td>`,
+      `<td>${input(`${vk}_units`, r[`${vk}_units`], 'number', `min="0" step="0.5" inputmode="decimal" aria-label="${s.label} ${v.label} units"`, 'ctl units')}</td>`,
+      `<td>${select(`${vk}_post`, POST_STATUS, r[`${vk}_post`] || '', `aria-label="${s.label} ${v.label} POST AB US"`)}</td>`
+    ];
+    return (mirror ? tds.reverse() : tds).join('');
+  };
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div class="section-h mb-0"><i data-feather="activity"></i>Vein treatment plan</div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
+        ${PROCS.slice(1).map(p => `<span class="inline-flex items-center gap-1.5"><span class="swatch" style="background: var(--p-${p.toLowerCase()})"></span>${p}</span>`).join('')}
+      </div>
+    </div>
+    <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
+      <table class="vtable">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--line)">
+            <th colspan="3" class="side-h text-right" style="text-align:right">Right leg</th>
+            <th class="mid"></th>
+            <th colspan="3" class="side-h">Left leg</th>
+          </tr>
+          <tr>
+            <th style="text-align:right">POST AB US</th><th>Units</th><th>Procedure</th>
+            <th class="mid">Vein</th>
+            <th>Procedure</th><th>Units</th><th>POST AB US</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${VEINS.map(v => `<tr>${cellsFor(SIDES[0], v, true)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cellsFor(SIDES[1], v, false)}</tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function milestonesEditor(r) {
+  return `
+    <div class="section-h"><i data-feather="calendar"></i>Post-op follow-up</div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      ${MILESTONES.map(m => `
+        <div class="border rounded-lg p-3" style="border-color: var(--line)">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="font-semibold text-[13.5px]">${m.label}</span>
+            <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" name="${m.k}Done" ${r[m.k + 'Done'] ? 'checked' : ''}>Completed</label>
+          </div>
+          ${input(m.k, r[m.k], 'date', `aria-label="${m.label} date"`)}
+        </div>`).join('')}
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+      <span class="text-muted text-[12.5px]">Have a procedure date? Fill all four milestone dates from it.</span>
+      <div class="flex items-center gap-2">
+        <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date">
+        <button type="button" class="btn btn-quiet" data-fill-ms>Fill dates</button>
+      </div>
+    </div>
+    <div class="border rounded-lg p-3 mt-3" style="border-color: var(--line)">
+      <label class="flex items-center gap-2 font-semibold text-[13.5px] mb-2"><input type="checkbox" name="poNewVeinsFlag" ${r.poNewVeinsFlag ? 'checked' : ''}>New veins to treat</label>
+      ${input('poNewVeins', r.poNewVeins, 'text', 'placeholder="Which veins, and what was found" aria-label="New veins details"')}
+    </div>`;
+}
+
+function formBody(r) {
+  const tab = TAB[r.category];
+  const surgeonOpts = ['', ...state.surgeons];
+  let html = `
+    <div class="grid sm:grid-cols-3 gap-4">
+      ${field('Tab', select('category', TABS.map(t => t.key), r.category))}
+      ${field('Patient name', input('name', r.name, 'text', 'autocomplete="off"'), { req: tab.nameRequired, opt: !tab.nameRequired, err: 'name' })}
+      ${field('BBA ID', input('bbaId', r.bbaId, 'text', 'autocomplete="off"'), { opt: true })}
+    </div>`;
+  if (tab.type === 'promo') {
+    html += `
+      <div class="grid sm:grid-cols-3 gap-4 mt-4">
+        ${field('Insurance', input('insurance', r.insurance, 'text', 'placeholder="e.g. BCBS, Aetna, Medicare"'))}
+        ${field('Location', select('location', LOCATIONS, r.location || state.settings.defaultLocation))}
+        ${field('IV or Vanquish', select('ivVanquish', IV_OPTIONS, r.ivVanquish || ''))}
+        ${field('Date promo', input('datePromo', r.datePromo, 'date'))}
+        ${field('US date', input('usDate', r.usDate, 'date'), {})}
+      </div>`;
+  } else {
+    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}</div>`;
+    html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
+    if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
+  }
+  html += `<div class="mt-6">${field('Notes', `<textarea name="notes" class="ctl" placeholder="Authorization status, calls, reminders">${esc(r.notes || '')}</textarea>`)}</div>`;
+  return html;
+}
+
+function readForm(form) {
+  const out = {};
+  [...form.elements].forEach(el => {
+    if (!el.name) return;
+    if (el.type === 'checkbox') out[el.name] = el.checked;
+    else if (el.type === 'number') out[el.name] = el.value === '' ? '' : Number(el.value);
+    else out[el.name] = el.tagName === 'TEXTAREA' ? el.value.trim() : el.value.trim();
+  });
+  return out;
+}
+
+let draft = null;
+function openRecord(id, presetCategory, focusError) {
+  const existing = id ? state.patients.find(p => p.id === id) : null;
+  if (id && !existing) return;
+  const category = presetCategory || existing?.category || state.view;
+  draft = existing ? { ...existing, category } : { category, surgeon: '' };
+  if (!existing) {
+    const t = TAB[category];
+    if (t.surgeonMatch) draft.surgeon = state.surgeons.find(s => t.surgeonMatch.test(s)) || '';
+    if (t.type === 'promo') draft.location = state.settings.defaultLocation;
+  }
+  const meta = existing
+    ? `Created ${existing.createdAt ? new Date(existing.createdAt).toLocaleDateString() : 'earlier'}. Last updated ${esc(relTime(existing.updatedAt))}${existing.updatedBy ? ' by ' + esc(existing.updatedBy) : ''}.`
+    : '';
+  showModal(`
+    <form id="recordForm" class="modal max-w-[980px]" novalidate>
+      <div class="flex items-center justify-between gap-3 px-6 py-4 border-b" style="border-color: var(--line)">
+        <div>
+          <h2 class="text-[17px] font-bold tracking-tight">${existing ? 'Edit record' : 'Add record'}</h2>
+          <p class="text-muted text-[12.5px]" id="formTabNote"></p>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
+      </div>
+      <div class="px-6 py-5" id="formBody">${formBody(draft)}</div>
+      <div class="px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--line); background: var(--sunken); border-radius: 0 0 12px 12px">
+        <p class="text-muted text-[12.5px]">${meta}</p>
+        <div class="flex gap-2 ml-auto">
+          <button type="button" class="btn btn-quiet" data-close>Cancel</button>
+          <button type="submit" class="btn btn-primary"><i data-feather="check"></i>Save record</button>
+        </div>
+      </div>
+    </form>`);
+  updateFormNote();
+  const form = $('#recordForm');
+  form.dataset.id = id || '';
+  if (focusError) showNameError(form);
+  else form.querySelector('[name="name"]').focus();
+}
+
+function updateFormNote() {
+  const form = $('#recordForm'); if (!form) return;
+  const t = TAB[form.querySelector('[name="category"]').value];
+  $('#formTabNote').textContent = t.nameRequired ? `${t.key}: patient name is required` : `${t.key}: patient name and BBA ID are optional`;
+}
+
+function showNameError(form) {
+  const nameEl = form.querySelector('[name="name"]');
+  const err = form.querySelector('[data-err="name"]');
+  nameEl.setAttribute('aria-invalid', 'true');
+  err.textContent = `Enter the patient’s name. It’s required on ${form.querySelector('[name="category"]').value}.`;
+  err.hidden = false;
+  nameEl.focus();
+}
+
+function saveRecord(form) {
+  const vals = readForm(form);
+  const tab = TAB[vals.category];
+  if (tab.nameRequired && !vals.name) { showNameError(form); return; }
+  const id = form.dataset.id;
+  const now = Date.now();
+  if (id) {
+    const i = state.patients.findIndex(p => p.id === id);
+    if (i === -1) return;
+    state.patients[i] = { ...state.patients[i], ...vals, demo: false, updatedAt: now, updatedBy: state.user };
+  } else {
+    state.patients.push({ id: uid(), ...vals, createdAt: now, updatedAt: now, updatedBy: state.user });
+  }
+  if (!savePatients()) return;
+  closeModal();
+  const moved = vals.category !== state.view && TAB[state.view];
+  toast(moved ? `Record saved to ${vals.category}` : 'Record saved');
+  render();
+}
+
+/* Quick notes */
+function openNotes(id) {
+  const p = state.patients.find(x => x.id === id); if (!p) return;
+  showModal(`
+    <form id="notesForm" class="modal max-w-[560px]" data-id="${p.id}" novalidate>
+      <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color: var(--line)">
+        <div><h2 class="text-[17px] font-bold">Notes</h2><p class="text-muted text-[12.5px]">${esc(p.name || 'Unnamed patient')}, ${esc(p.category)}</p></div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
+      </div>
+      <div class="p-6"><textarea name="notes" class="ctl" style="min-height:180px" aria-label="Notes">${esc(p.notes || '')}</textarea></div>
+      <div class="px-6 pb-5 flex justify-end gap-2">
+        <button type="button" class="btn btn-quiet" data-close>Cancel</button>
+        <button class="btn btn-primary"><i data-feather="check"></i>Save notes</button>
+      </div>
+    </form>`);
+  $('#notesForm textarea').focus();
+}
+
+/* Move */
+function openMove(id) {
+  const p = state.patients.find(x => x.id === id); if (!p) return;
+  showModal(`
+    <div class="modal max-w-[460px]" role="dialog" aria-label="Move record">
+      <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color: var(--line)">
+        <div><h2 class="text-[17px] font-bold">Move to tab</h2><p class="text-muted text-[12.5px]">${esc(p.name || 'Unnamed patient')}, now in ${esc(p.category)}</p></div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
+      </div>
+      <div class="p-3">
+        ${TABS.map(t => `
+          <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left hover:bg-sunken disabled:opacity-50 disabled:cursor-not-allowed" data-move-to="${esc(t.key)}" data-id="${p.id}" ${t.key === p.category ? 'disabled' : ''}>
+            <span class="swatch" style="background: var(${groupColorVar(t.group)})"></span>
+            <span class="font-medium">${esc(t.key)}</span>
+            <span class="ml-auto text-muted text-[12px]">${t.key === p.category ? 'Current' : GROUPS[t.group]}</span>
+          </button>`).join('')}
+      </div>
+    </div>`);
+}
+
+function moveRecord(id, to) {
+  const p = state.patients.find(x => x.id === id); if (!p) return;
+  if (TAB[to].nameRequired && !p.name) {
+    closeModal();
+    openRecord(id, to, true);
+    return;
+  }
+  const from = p.category;
+  Object.assign(p, { category: to, updatedAt: Date.now(), updatedBy: state.user });
+  savePatients();
+  closeModal();
+  toast(`Moved to ${to}`, { action: { label: 'Undo', run: () => { p.category = from; savePatients(); render(); } } });
+  render();
+}
+
+function deleteRecord(id) {
+  const i = state.patients.findIndex(x => x.id === id); if (i === -1) return;
+  const [removed] = state.patients.splice(i, 1);
+  savePatients();
+  render();
+  toast(`Deleted ${removed.name || 'unnamed record'}`, {
+    duration: 8000,
+    action: { label: 'Undo', run: () => { state.patients.splice(i, 0, removed); savePatients(); render(); } }
+  });
+}
+
+function toggleMilestone(id, k) {
+  const p = state.patients.find(x => x.id === id); if (!p) return;
+  p[k + 'Done'] = !p[k + 'Done'];
+  p.updatedAt = Date.now(); p.updatedBy = state.user;
+  savePatients();
+  render();
+}
+
+/* Modal plumbing */
+let lastFocus = null;
+function showModal(html) {
+  lastFocus = document.activeElement;
+  $('#modalRoot').innerHTML = `<div class="modal-wrap" data-backdrop>${html}</div>`;
+  icons();
+}
+function closeModal() {
+  $('#modalRoot').innerHTML = '';
+  draft = null;
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+/* ============================================================
+   Admin views
+   ============================================================ */
+function renderSurgeons() {
+  $('#surgeonList').innerHTML = state.surgeons.length ? state.surgeons.map((s, i) => {
+    const n = state.patients.filter(p => p.surgeon === s).length;
+    return `<li class="px-5 py-3 flex items-center gap-3" style="border-color: var(--line)">
+      <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background: var(--accent-soft); color: var(--accent)"><i data-feather="user"></i></span>
+      <div class="min-w-0 flex-1"><div class="font-semibold truncate">${esc(s)}</div><div class="text-muted text-[12.5px]">${n} record${n === 1 ? '' : 's'}</div></div>
+      <button class="icon-btn danger" data-del-surgeon="${i}" aria-label="Remove ${esc(s)}" title="Remove"><i data-feather="trash-2"></i></button>
+    </li>`;
+  }).join('') : `<li class="px-5 py-8 text-muted text-center">No surgeons on the roster. Add one above.</li>`;
+}
+
+function renderUsers() {
+  $('#userList').innerHTML = state.users.map((u, i) => {
+    const me = sameEmail(u, state.user);
+    return `<li class="px-5 py-3 flex items-center gap-3" style="border-color: var(--line)">
+      <span class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0" style="background: var(--accent-soft); color: var(--accent)">${esc(u[0].toUpperCase())}</span>
+      <div class="min-w-0 flex-1 truncate">${esc(u)}</div>
+      ${me ? '<span class="chip accent">You</span>' : `<button class="icon-btn danger" data-del-user="${i}" aria-label="Remove ${esc(u)}" title="Remove access"><i data-feather="user-x"></i></button>`}
+    </li>`;
+  }).join('');
+}
+
+function renderSettings() {
+  const f = $('#settingsForm');
+  f.elements.practiceName.value = state.settings.practiceName;
+  f.elements.defaultLocation.value = state.settings.defaultLocation;
+  f.elements.exportPrefix.value = state.settings.exportPrefix;
+  f.elements.compactRows.checked = !!state.settings.compactRows;
+  $('#removeDemoBtn').disabled = !state.patients.some(p => p.demo);
+  $('#removeDemoBtn').style.opacity = $('#removeDemoBtn').disabled ? .5 : 1;
+}
+
+function showErr(sel, msg) { const e = $(sel); e.textContent = msg; e.hidden = !msg; }
+
+/* ============================================================
+   File saving & confirmations (work both as a local file and as a published artifact)
+   ============================================================ */
+let downloadsApi;
+async function getDownloads() {
+  if (downloadsApi !== undefined) return downloadsApi;
+  try { downloadsApi = window.claude && window.claude.use ? await window.claude.use('downloads') : null; }
+  catch (e) { downloadsApi = null; }
+  return downloadsApi;
+}
+async function saveFile(filename, data, mime) {
+  const dl = await getDownloads();
+  if (dl) {
+    try { await dl.save({ filename, data }); return true; }
+    catch (e) {
+      if (e && e.code === 'declined') return false;
+      if (e && e.code === 'rate_limited') { toast('A save prompt is already open. Finish it, then try again.', { type: 'error' }); return false; }
+      toast('Saving files is not available in this view.', { type: 'error' }); return false;
+    }
+  }
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return true;
+}
+
+function askConfirm(message, opts = {}) {
+  return new Promise(resolve => {
+    const prev = $('#modalRoot').innerHTML;
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.style.zIndex = 70;
+    wrap.innerHTML = `
+      <form class="modal max-w-[440px] p-6" novalidate>
+        <h2 class="text-[17px] font-bold">${esc(opts.title || 'Are you sure?')}</h2>
+        <p class="text-muted mt-2 text-[13.5px]">${esc(message)}</p>
+        ${opts.requireText ? `<label class="block mt-4"><span class="lbl">Type ${esc(opts.requireText)} to confirm</span><input class="ctl" autocomplete="off"></label><div class="err" hidden></div>` : ''}
+        <div class="flex justify-end gap-2 mt-5">
+          <button type="button" class="btn btn-quiet" data-no>Cancel</button>
+          <button class="btn ${opts.danger ? 'btn-danger' : 'btn-primary'}">${esc(opts.confirmLabel || 'Confirm')}</button>
+        </div>
+      </form>`;
+    const done = v => { wrap.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    document.addEventListener('keydown', onKey, true);
+    wrap.addEventListener('click', e => { if (e.target === wrap || e.target.closest('[data-no]')) done(false); });
+    wrap.querySelector('form').addEventListener('submit', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (opts.requireText) {
+        const inp = wrap.querySelector('input');
+        if (inp.value.trim() !== opts.requireText) { const er = wrap.querySelector('.err'); er.textContent = `Type ${opts.requireText} exactly to continue.`; er.hidden = false; inp.focus(); return; }
+      }
+      done(true);
+    });
+    document.body.appendChild(wrap);
+    (wrap.querySelector('input') || wrap.querySelector('button[data-no]')).focus();
+  });
+}
+
+/* ============================================================
+   Export & backup
+   ============================================================ */
+function exportColumns(type) {
+  const cols = [['Patient Name', p => p.name || ''], ['BBA ID', p => p.bbaId || '']];
+  if (type === 'promo') {
+    cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
+      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || '']);
+  } else {
+    cols.push(['Surgeon', p => p.surgeon || '']);
+    SIDES.forEach(s => VEINS.forEach(v => {
+      const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
+      cols.push([`${pre} Procedure`, p => p[`${vk}_proc`] || 'None'],
+        [`${pre} Units`, p => p[`${vk}_units`] === '' || p[`${vk}_units`] == null ? '' : Number(p[`${vk}_units`])],
+        [`${pre} POST AB US`, p => p[`${vk}_post`] || '']);
+    }));
+    if (type === 'po') {
+      MILESTONES.forEach(m => cols.push([`${m.label} Date`, p => p[m.k] || ''], [`${m.label} Done`, p => p[m.k + 'Done'] ? 'Yes' : 'No']));
+      cols.push(['New Veins To Treat', p => p.poNewVeinsFlag ? 'Yes' : 'No'], ['New Veins Details', p => p.poNewVeins || '']);
+    }
+  }
+  cols.push(['Notes', p => p.notes || ''], ['Last Updated', p => p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ''], ['Updated By', p => p.updatedBy || '']);
+  return cols;
+}
+
+function exportXlsx() {
+  if (!window.XLSX) { toast('The spreadsheet library did not load. Check your internet connection and reload.', { type: 'error' }); return; }
+  const wb = XLSX.utils.book_new();
+  const summary = [
+    ['Vein Pre-Authorization & Treatment Tracker'],
+    ['Practice', state.settings.practiceName],
+    ['Exported', new Date().toLocaleString()],
+    ['Exported by', state.user],
+    [],
+    ['Tab', 'Records'],
+    ...TABS.map(t => [t.key, state.patients.filter(p => p.category === t.key).length]),
+    ['Total', state.patients.length]
+  ];
+  const ws0 = XLSX.utils.aoa_to_sheet(summary);
+  ws0['!cols'] = [{ wch: 34 }, { wch: 32 }];
+  XLSX.utils.book_append_sheet(wb, ws0, 'Summary');
+
+  TABS.forEach(t => {
+    const cols = exportColumns(t.type);
+    const rows = state.patients.filter(p => p.category === t.key).map(p => cols.map(([, fn]) => fn(p)));
+    const ws = XLSX.utils.aoa_to_sheet([cols.map(c => c[0]), ...rows]);
+    ws['!cols'] = cols.map(([h]) => ({ wch: h === 'Notes' || h === 'New Veins Details' ? 48 : Math.max(11, h.length + 2) }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(rows.length, 1), c: cols.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, t.key.replace(/[:\\\/?*\[\]]/g, '').slice(0, 31));
+  });
+  const prefix = (state.settings.exportPrefix || 'Vein_Tracker').replace(/[^\w\- ]+/g, '').trim() || 'Vein_Tracker';
+  const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveFile(`${prefix}_${localISO()}.xlsx`, new Uint8Array(bytes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    .then(ok => { if (ok) toast('Spreadsheet exported'); });
+}
+
+function downloadBackup() {
+  const data = { app: 'vein-tracker', version: 2, exportedAt: new Date().toISOString(), patients: state.patients, surgeons: state.surgeons, users: state.users, settings: state.settings };
+  saveFile(`vein-tracker-backup_${localISO()}.json`, JSON.stringify(data, null, 2), 'application/json')
+    .then(ok => { if (ok) toast('Backup downloaded'); });
+}
+
+function restoreBackup(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch (e) { toast('That file is not a valid backup. Choose a .json file downloaded from this tracker.', { type: 'error' }); return; }
+    if (!data || !Array.isArray(data.patients)) { toast('That file has no patient records. Choose a backup downloaded from this tracker.', { type: 'error' }); return; }
+    if (!await askConfirm(`Replace all current data with this backup (${data.patients.length} records)? This can't be undone.`, { title: 'Restore backup', confirmLabel: 'Replace data', danger: true })) return;
+    state.patients = data.patients.map(normalizePatient);
+    if (Array.isArray(data.surgeons)) state.surgeons = data.surgeons.filter(s => typeof s === 'string');
+    if (Array.isArray(data.users) && data.users.length) state.users = data.users.filter(isEmail);
+    if (data.settings && typeof data.settings === 'object') state.settings = { ...DEFAULT_SETTINGS, ...data.settings };
+    savePatients(); saveSurgeons(); saveUsers(); saveSettings();
+    if (!state.users.some(u => sameEmail(u, state.user))) { toast('Backup restored. Your email is not in it, so you were signed out.'); signOut(); return; }
+    if (state.chart) { state.chart.destroy(); state.chart = null; }
+    toast(`Backup restored: ${state.patients.length} records`);
+    render();
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   Events
+   ============================================================ */
+function bind() {
+  $('#loginForm').addEventListener('submit', e => { e.preventDefault(); signIn($('#loginEmail').value); });
+  $('#quickLogin').addEventListener('click', e => { const b = e.target.closest('[data-quick]'); if (b) signIn(b.dataset.quick); });
+  $('#logoutBtn').addEventListener('click', signOut);
+  $('#menuBtn').addEventListener('click', openSidebar);
+  $('#scrim').addEventListener('click', closeSidebar);
+  $('#exportBtn').addEventListener('click', exportXlsx);
+  $('#addBtn').addEventListener('click', () => openRecord(null));
+  $('#search').addEventListener('input', e => { state.search = e.target.value; renderList(); icons(); });
+
+  // Delegated clicks for nav, tables, dashboard lists, modals
+  document.addEventListener('click', e => {
+    const t = e.target;
+    const nav = t.closest('[data-nav]'); if (nav && !nav.disabled) { navigate(nav.dataset.nav); return; }
+    const ms = t.closest('[data-ms]'); if (ms) { toggleMilestone(ms.dataset.id, ms.dataset.ms); return; }
+    const ed = t.closest('[data-edit]'); if (ed) { openRecord(ed.dataset.edit); return; }
+    const del = t.closest('[data-del]'); if (del) { deleteRecord(del.dataset.del); return; }
+    const mv = t.closest('[data-move]'); if (mv) { openMove(mv.dataset.move); return; }
+    const nt = t.closest('[data-notes]'); if (nt) { openNotes(nt.dataset.notes); return; }
+    const mvTo = t.closest('[data-move-to]'); if (mvTo) { moveRecord(mvTo.dataset.id, mvTo.dataset.moveTo); return; }
+    if (t.closest('[data-add]')) { openRecord(null); return; }
+    if (t.closest('[data-clear-search]')) { state.search = ''; $('#search').value = ''; renderList(); icons(); return; }
+    if (t.closest('[data-close]') || t.matches('[data-backdrop]')) { closeModal(); return; }
+    if (t.closest('[data-fill-ms]')) {
+      const base = $('#procDateHelper').value;
+      if (!base) { $('#procDateHelper').focus(); toast('Pick the procedure date first.', { type: 'error' }); return; }
+      const d0 = new Date(base + 'T00:00:00');
+      const f = $('#recordForm');
+      f.querySelector('[name="po30Day"]').value = addDays(30, d0);
+      const addMonths = n => { const last = new Date(d0.getFullYear(), d0.getMonth() + n + 1, 0).getDate(); return localISO(new Date(d0.getFullYear(), d0.getMonth() + n, Math.min(d0.getDate(), last))); };
+      f.querySelector('[name="po3Month"]').value = addMonths(3);
+      f.querySelector('[name="po6Month"]').value = addMonths(6);
+      f.querySelector('[name="po12Month"]').value = addMonths(12);
+      return;
+    }
+    const row = t.closest('tr[data-row]');
+    if (row && !t.closest('button, a, input, select')) openRecord(row.dataset.row);
+    const ds = t.closest('[data-del-surgeon]');
+    if (ds) {
+      const s = state.surgeons[+ds.dataset.delSurgeon];
+      state.surgeons.splice(+ds.dataset.delSurgeon, 1); saveSurgeons(); render();
+      toast(`Removed ${s}`, { action: { label: 'Undo', run: () => { state.surgeons.push(s); saveSurgeons(); render(); } } });
+    }
+    const du = t.closest('[data-del-user]');
+    if (du) {
+      const u = state.users[+du.dataset.delUser];
+      state.users.splice(+du.dataset.delUser, 1); saveUsers(); render();
+      toast(`${u} can no longer sign in`, { action: { label: 'Undo', run: () => { state.users.push(u); saveUsers(); render(); } } });
+    }
+  });
+
+  // Form changes inside modals
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.matches('select.proc')) t.dataset.proc = t.value;
+    if (t.form && t.form.id === 'recordForm' && t.name === 'category') {
+      const form = t.form;
+      draft = { ...draft, ...readForm(form) };
+      const nt = TAB[draft.category];
+      if (nt.surgeonMatch && !draft.surgeon) draft.surgeon = state.surgeons.find(s => nt.surgeonMatch.test(s)) || '';
+      $('#formBody').innerHTML = formBody(draft);
+      updateFormNote();
+      icons();
+    }
+  });
+  document.addEventListener('input', e => {
+    if (e.target.name === 'name' && e.target.form?.id === 'recordForm') {
+      e.target.removeAttribute('aria-invalid');
+      const err = e.target.form.querySelector('[data-err="name"]'); if (err) err.hidden = true;
+    }
+  });
+  document.addEventListener('submit', e => {
+    if (e.target.id === 'recordForm') { e.preventDefault(); saveRecord(e.target); }
+    if (e.target.id === 'notesForm') {
+      e.preventDefault();
+      const p = state.patients.find(x => x.id === e.target.dataset.id);
+      if (p) { p.notes = e.target.elements.notes.value.trim(); p.updatedAt = Date.now(); p.updatedBy = state.user; savePatients(); }
+      closeModal(); toast('Notes saved'); render();
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { if ($('#modalRoot').innerHTML) closeModal(); else closeSidebar(); }
+  });
+
+  // Admin forms
+  $('#surgeonForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const v = $('#surgeonInput').value.trim();
+    if (!v) return showErr('#surgeonErr', 'Enter the surgeon’s name.');
+    if (state.surgeons.some(s => s.toLowerCase() === v.toLowerCase())) return showErr('#surgeonErr', `${v} is already on the roster.`);
+    showErr('#surgeonErr', '');
+    state.surgeons.push(v); saveSurgeons(); $('#surgeonInput').value = ''; render(); toast(`Added ${v}`);
+  });
+  $('#resetSurgeons').addEventListener('click', async () => {
+    if (!await askConfirm('Replace the surgeon roster with the defaults?', { title: 'Restore default roster', confirmLabel: 'Restore roster' })) return;
+    state.surgeons = [...DEFAULT_SURGEONS]; saveSurgeons(); render(); toast('Surgeon roster restored');
+  });
+  $('#userForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const v = $('#userInput').value.trim();
+    if (!isEmail(v)) return showErr('#userErr', 'Enter a full email address, like name@beltlinehealth.com.');
+    if (state.users.some(u => sameEmail(u, v))) return showErr('#userErr', `${v} is already authorized.`);
+    showErr('#userErr', '');
+    state.users.push(v); saveUsers(); $('#userInput').value = ''; render(); toast(`${v} can now sign in`);
+  });
+  $('#resetUsers').addEventListener('click', async () => {
+    if (!await askConfirm('Replace the authorized list with the default 10 users? You stay on the list.', { title: 'Restore default users', confirmLabel: 'Restore users' })) return;
+    state.users = [...DEFAULT_USERS];
+    if (!state.users.some(u => sameEmail(u, state.user))) state.users.push(state.user);
+    saveUsers(); render(); toast('Authorized users restored');
+  });
+  $('#settingsForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target;
+    state.settings = {
+      practiceName: f.elements.practiceName.value.trim() || DEFAULT_SETTINGS.practiceName,
+      defaultLocation: f.elements.defaultLocation.value,
+      exportPrefix: f.elements.exportPrefix.value.trim() || DEFAULT_SETTINGS.exportPrefix,
+      compactRows: f.elements.compactRows.checked
+    };
+    saveSettings(); render(); toast('Settings saved');
+  });
+  $('#backupBtn').addEventListener('click', downloadBackup);
+  $('#restoreInput').addEventListener('change', e => { if (e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ''; });
+  $('#removeDemoBtn').addEventListener('click', async () => {
+    const n = state.patients.filter(p => p.demo).length;
+    if (!n || !await askConfirm(`Remove ${n} demo record${n > 1 ? 's' : ''}? Records you have edited are kept.`, { title: 'Remove demo records', confirmLabel: 'Remove demo records' })) return;
+    state.patients = state.patients.filter(p => !p.demo); savePatients(); render(); toast(`Removed ${n} demo records`);
+  });
+  $('#wipeBtn').addEventListener('click', async () => {
+    if (!await askConfirm(`This deletes all ${state.patients.length} patient records from this browser.`, { title: 'Delete all records', confirmLabel: 'Delete all records', danger: true, requireText: 'DELETE' })) return;
+    state.patients = []; savePatients(); render(); toast('All patient records deleted');
+  });
+
+  // Live sync with other open tabs of this app
+  window.addEventListener('storage', e => {
+    if (!Object.values(LS).includes(e.key)) return;
+    loadAll();
+    if (state.user && !state.users.some(u => sameEmail(u, state.user))) { signOut(); return; }
+    if (state.user && !$('#modalRoot').innerHTML) render();
+    else if (!state.user) { renderLogin(); icons(); }
+  });
+
+  // Rebuild chart colors when the system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.chart) { state.chart.destroy(); state.chart = null; }
+    if (state.user && viewKind() === 'dashboard') renderChart();
+  });
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+function brandMarks() {
+  const svg = `<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="7" fill="#2D4EA2"/><path d="M15 5 C14 10 16 13 15 17 S13 22 14 25" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M15 17 C18 18 20 21 21 25" stroke="#BFD0FF" stroke-width="1.9" fill="none" stroke-linecap="round"/><path d="M15.2 10 C12.5 11 10.5 12.5 9 14.5" stroke="#BFD0FF" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
+  document.querySelectorAll('.brand-mark').forEach(el => el.innerHTML = svg);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+  brandMarks();
+  bind();
+  document.querySelectorAll('[data-practice]').forEach(el => el.textContent = state.settings.practiceName);
+  const session = sessionStorage.getItem(SESSION_KEY);
+  const match = session && state.users.find(u => sameEmail(u, session));
+  if (match) startSession(match);
+  else { $('#login').hidden = false; renderLogin(); }
+  icons();
+});
+</script>
+</body>
+</html>
