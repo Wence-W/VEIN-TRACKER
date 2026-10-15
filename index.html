@@ -267,7 +267,7 @@
         </div>
         <div id="searchWrap" class="relative w-full sm:w-64 order-last sm:order-none" hidden>
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"><i data-feather="search"></i></span>
-          <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search name, BBA ID, notes" aria-label="Search records in this tab">
+          <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search BBA ID, insurance, notes" aria-label="Search records in this tab">
         </div>
         <button id="exportBtn" class="btn btn-export" title="Download all tabs as an .xlsx workbook"><i data-feather="download"></i><span class="hidden sm:inline">Export to Spreadsheet</span><span class="sm:hidden">Export</span></button>
         <button id="addBtn" class="btn btn-primary" hidden><i data-feather="plus"></i>Add record</button>
@@ -417,19 +417,19 @@ const DEFAULT_SETTINGS = { practiceName: 'Beltline Health', defaultLocation: 'AT
 const GROUPS = { intake: 'Intake', surgeon: 'Surgeon queues', postop: 'Post-op', closed: 'Closed' };
 const TABS = [
   { key: 'Promo', group: 'intake', type: 'promo', nameRequired: false, icon: 'tag',
-    blurb: 'Promo inquiries and ultrasound scheduling. Name and BBA ID are optional.' },
+    blurb: 'Promo inquiries and ultrasound scheduling. BBA ID is optional.' },
   { key: 'Procter Pay Attention', group: 'intake', type: 'clinical', nameRequired: false, icon: 'flag',
-    blurb: 'Cases flagged for Dr. Procter’s review. Name and BBA ID are optional.' },
+    blurb: 'Cases flagged for Dr. Procter’s review. BBA ID is optional.' },
   { key: 'Dr. Procter', group: 'surgeon', type: 'clinical', nameRequired: true, icon: 'user', surgeonMatch: /procter/i,
-    blurb: 'Pre-authorization queue for Dr. Procter. Patient name is required.' },
+    blurb: 'Pre-authorization queue for Dr. Procter. BBA ID is required.' },
   { key: 'Dr. Danthuluri', group: 'surgeon', type: 'clinical', nameRequired: true, icon: 'user', surgeonMatch: /danthuluri/i,
-    blurb: 'Pre-authorization queue for Dr. Danthuluri. Patient name is required.' },
+    blurb: 'Pre-authorization queue for Dr. Danthuluri. BBA ID is required.' },
   { key: 'PO Vein FU', group: 'postop', type: 'po', nameRequired: true, icon: 'calendar',
-    blurb: 'Post-op follow-up at 30 days, 3, 6 and 12 months. Patient name is required.' },
+    blurb: 'Post-op follow-up at 30 days, 3, 6 and 12 months. BBA ID is required.' },
   { key: 'PA DENIED', group: 'closed', type: 'clinical', nameRequired: true, icon: 'x-octagon',
-    blurb: 'Prior authorizations that were denied. Patient name is required.' },
+    blurb: 'Prior authorizations that were denied. BBA ID is required.' },
   { key: 'Not Interested Now or excluded', group: 'closed', type: 'clinical', nameRequired: true, icon: 'pause-circle',
-    blurb: 'Patients who declined for now or were excluded. Patient name is required.' }
+    blurb: 'Patients who declined for now or were excluded. BBA ID is required.' }
 ];
 const TAB = Object.fromEntries(TABS.map(t => [t.key, t]));
 const ADMIN = [
@@ -489,6 +489,7 @@ const sameEmail = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 const icons = () => { if (window.feather) feather.replace({ 'stroke-width': 1.9 }); };
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const groupColorVar = g => `--g-${g}`;
+const recLabel = p => p.bbaId || 'No BBA ID';
 const treated = p => VEIN_KEYS.filter(vk => p[`${vk}_proc`] && p[`${vk}_proc`] !== 'None');
 
 function load(key, fallback) {
@@ -511,15 +512,15 @@ const state = {
 function demoRecords() {
   const now = Date.now();
   const recs = [
-    { category: 'Promo', name: '', bbaId: '', insurance: 'BCBS', location: 'ATL', datePromo: addDays(-6), ivVanquish: 'IV', usDate: addDays(3), notes: 'Inquiry from community screening event.' },
-    { category: 'Promo', name: 'Demo Patient H', bbaId: '', insurance: 'Aetna', location: 'Newnan', datePromo: addDays(-2), ivVanquish: 'Vanquish', usDate: '', notes: '' },
-    { category: 'Procter Pay Attention', name: '', bbaId: 'BBA-1120', r_gsv_proc: 'RFA', r_gsv_units: 1, notes: 'Review prior ultrasound before scheduling.' },
-    { category: 'Dr. Procter', name: 'Demo Patient B', bbaId: 'BBA-1042', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Scheduled', l_gsv_proc: 'RFA', l_gsv_units: 1, l_ssv_proc: 'Varithena', l_ssv_units: 2, notes: 'Authorization submitted.' },
-    { category: 'Dr. Danthuluri', name: 'Demo Patient C', bbaId: 'BBA-1077', surgeon: 'Dr. V. Danthuluri', l_pasv_proc: 'Venaseal', l_pasv_units: 1, r_btk_proc: 'Varithena', r_btk_units: 3, r_btk_post: 'Ordered', notes: '' },
-    { category: 'PO Vein FU', name: 'Demo Patient D', bbaId: 'BBA-0988', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Completed', po30Day: addDays(-40), po30DayDone: true, po3Month: addDays(5), po6Month: addDays(95), po12Month: addDays(280), notes: '' },
-    { category: 'PO Vein FU', name: 'Demo Patient E', bbaId: '', surgeon: 'Dr. V. Danthuluri', l_gsv_proc: 'Venaseal', l_gsv_units: 1, l_gsv_post: 'Completed', po30Day: addDays(-3), po3Month: addDays(57), po6Month: addDays(147), po12Month: addDays(332), poNewVeinsFlag: true, poNewVeins: 'Possible right SSV reflux, recheck at 3 months.', notes: '' },
-    { category: 'PA DENIED', name: 'Demo Patient F', bbaId: 'BBA-1101', surgeon: 'Dr. Charles Procter', r_ssv_proc: 'RFA', r_ssv_units: 1, notes: 'Denied: conservative therapy not documented. Appeal pending.' },
-    { category: 'Not Interested Now or excluded', name: 'Demo Patient G', bbaId: '', notes: 'Asked to revisit in spring.' }
+    { category: 'Promo', bbaId: '', insurance: 'BCBS', location: 'ATL', datePromo: addDays(-6), ivVanquish: 'IV', usDate: addDays(3), notes: 'Inquiry from community screening event.' },
+    { category: 'Promo', bbaId: '', insurance: 'Aetna', location: 'Newnan', datePromo: addDays(-2), ivVanquish: 'Vanquish', usDate: '', notes: '' },
+    { category: 'Procter Pay Attention', bbaId: 'BBA-1120', r_gsv_proc: 'RFA', r_gsv_units: 1, notes: 'Review prior ultrasound before scheduling.' },
+    { category: 'Dr. Procter', bbaId: 'BBA-1042', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Scheduled', l_gsv_proc: 'RFA', l_gsv_units: 1, l_ssv_proc: 'Varithena', l_ssv_units: 2, notes: 'Authorization submitted.' },
+    { category: 'Dr. Danthuluri', bbaId: 'BBA-1077', surgeon: 'Dr. V. Danthuluri', l_pasv_proc: 'Venaseal', l_pasv_units: 1, r_btk_proc: 'Varithena', r_btk_units: 3, r_btk_post: 'Ordered', notes: '' },
+    { category: 'PO Vein FU', bbaId: 'BBA-0988', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Completed', po30Day: addDays(-40), po30DayDone: true, po3Month: addDays(5), po6Month: addDays(95), po12Month: addDays(280), notes: '' },
+    { category: 'PO Vein FU', bbaId: 'BBA-1150', surgeon: 'Dr. V. Danthuluri', l_gsv_proc: 'Venaseal', l_gsv_units: 1, l_gsv_post: 'Completed', po30Day: addDays(-3), po3Month: addDays(57), po6Month: addDays(147), po12Month: addDays(332), poNewVeinsFlag: true, poNewVeins: 'Possible right SSV reflux, recheck at 3 months.', notes: '' },
+    { category: 'PA DENIED', bbaId: 'BBA-1101', surgeon: 'Dr. Charles Procter', r_ssv_proc: 'RFA', r_ssv_units: 1, notes: 'Denied: conservative therapy not documented. Appeal pending.' },
+    { category: 'Not Interested Now or excluded', bbaId: 'BBA-1188', notes: 'Asked to revisit in spring.' }
   ];
   return recs.map((r, i) => ({ id: uid() + i, demo: true, createdAt: now - i * 5e6, updatedAt: now - i * 5e6, updatedBy: 'Demo data', ...r }));
 }
@@ -728,7 +729,7 @@ function renderDashboard() {
       : diff <= 14 ? `<span class="chip warn">In ${diff} day${diff > 1 ? 's' : ''}</span>`
       : `<span class="chip">${esc(fmtDate(date))}</span>`;
     return `<li style="border-color: var(--line)"><button class="w-full text-left py-2.5 flex items-center gap-3" data-edit="${p.id}">
-      <div class="min-w-0 flex-1"><div class="font-semibold truncate">${esc(p.name || 'Unnamed patient')}</div>
+      <div class="min-w-0 flex-1"><div class="font-semibold truncate">${esc(recLabel(p))}</div>
       <div class="text-muted text-[12.5px]">${m.label}, ${esc(fmtDate(date))}</div></div>${chip}</button></li>`;
   }).join('') : `<li class="py-6 text-muted text-[13px]">No open milestones. Add dates on PO Vein FU records to see them here.</li>`;
 
@@ -751,7 +752,7 @@ function renderDashboard() {
   $('#recent').innerHTML = recent.length ? recent.map(p => `
     <li style="border-color: var(--line)"><button class="w-full text-left py-2.5 flex items-center gap-3 flex-wrap" data-edit="${p.id}">
       <span class="swatch" style="background: var(${groupColorVar(TAB[p.category].group)})"></span>
-      <span class="font-semibold">${esc(p.name || 'Unnamed patient')}</span>
+      <span class="font-semibold">${esc(recLabel(p))}</span>
       <span class="text-muted text-[13px]">${esc(p.category)}</span>
       <span class="ml-auto text-muted text-[12.5px]">${esc(relTime(p.updatedAt))}${p.updatedBy ? ', ' + esc(p.updatedBy) : ''}</span>
     </button></li>`).join('') : `<li class="py-6 text-muted text-[13px]">No records yet. Open a tab and choose Add record.</li>`;
@@ -801,7 +802,7 @@ function renderChart() {
    Patient list
    ============================================================ */
 const dash = v => (v === undefined || v === null || v === '') ? '<span class="text-muted">–</span>' : esc(v);
-const nameCell = p => p.name ? `<div class="font-semibold">${esc(p.name)}</div>` : `<div class="text-muted italic">Unnamed</div>`;
+const idCell = p => p.bbaId ? `<div class="font-semibold">${esc(p.bbaId)}</div>` : `<div class="text-muted italic">No BBA ID</div>`;
 const dateCell = d => d ? `<span class="whitespace-nowrap">${esc(fmtDate(d))}</span>` : dash();
 const notesCell = p => p.notes ? `<div class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</div>` : dash();
 
@@ -834,7 +835,7 @@ function msCell(p, k) {
 }
 
 function columns(type) {
-  const base = [{ h: 'Patient', c: nameCell }, { h: 'BBA ID', c: p => dash(p.bbaId) }];
+  const base = [{ h: 'BBA ID', c: idCell }];
   if (type === 'promo') return [...base,
     { h: 'Insurance', c: p => dash(p.insurance) },
     { h: 'Location', c: p => p.location ? `<span class="chip accent">${esc(p.location)}</span>` : dash() },
@@ -856,7 +857,7 @@ function rowsFor(tabKey) {
   const q = state.search.toLowerCase().trim();
   return state.patients
     .filter(p => p.category === tabKey)
-    .filter(p => !q || [p.name, p.bbaId, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins]
+    .filter(p => !q || [p.bbaId, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins]
       .some(v => String(v || '').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -895,7 +896,7 @@ function renderList() {
          <p class="text-muted mt-1">Check the spelling or search by BBA ID.</p>
          <button class="btn btn-quiet mt-4" data-clear-search>Clear search</button>`
       : `<p class="font-semibold">${esc(tab.key)} has no records yet.</p>
-         <p class="text-muted mt-1">${tab.nameRequired ? 'Each record needs a patient name.' : 'You can save a record without a name or BBA ID.'}</p>
+         <p class="text-muted mt-1">${tab.nameRequired ? 'Each record needs a BBA ID.' : 'You can save a record without a BBA ID.'}</p>
          <button class="btn btn-primary mt-4" data-add><i data-feather="plus"></i>Add record</button>`;
   }
 }
@@ -985,8 +986,7 @@ function formBody(r) {
   let html = `
     <div class="grid sm:grid-cols-3 gap-4">
       ${field('Tab', select('category', TABS.map(t => t.key), r.category))}
-      ${field('Patient name', input('name', r.name, 'text', 'autocomplete="off"'), { req: tab.nameRequired, opt: !tab.nameRequired, err: 'name' })}
-      ${field('BBA ID', input('bbaId', r.bbaId, 'text', 'autocomplete="off"'), { opt: true })}
+      ${field('BBA ID', input('bbaId', r.bbaId, 'text', 'autocomplete="off"'), { req: tab.nameRequired, opt: !tab.nameRequired, err: 'bbaId' })}
     </div>`;
   if (tab.type === 'promo') {
     html += `
@@ -1053,20 +1053,20 @@ function openRecord(id, presetCategory, focusError) {
   const form = $('#recordForm');
   form.dataset.id = id || '';
   if (focusError) showNameError(form);
-  else form.querySelector('[name="name"]').focus();
+  else form.querySelector('[name="bbaId"]').focus();
 }
 
 function updateFormNote() {
   const form = $('#recordForm'); if (!form) return;
   const t = TAB[form.querySelector('[name="category"]').value];
-  $('#formTabNote').textContent = t.nameRequired ? `${t.key}: patient name is required` : `${t.key}: patient name and BBA ID are optional`;
+  $('#formTabNote').textContent = t.nameRequired ? `${t.key}: BBA ID is required` : `${t.key}: BBA ID is optional`;
 }
 
 function showNameError(form) {
-  const nameEl = form.querySelector('[name="name"]');
-  const err = form.querySelector('[data-err="name"]');
+  const nameEl = form.querySelector('[name="bbaId"]');
+  const err = form.querySelector('[data-err="bbaId"]');
   nameEl.setAttribute('aria-invalid', 'true');
-  err.textContent = `Enter the patient’s name. It’s required on ${form.querySelector('[name="category"]').value}.`;
+  err.textContent = `Enter the BBA ID. It’s required on ${form.querySelector('[name="category"]').value}.`;
   err.hidden = false;
   nameEl.focus();
 }
@@ -1074,7 +1074,7 @@ function showNameError(form) {
 function saveRecord(form) {
   const vals = readForm(form);
   const tab = TAB[vals.category];
-  if (tab.nameRequired && !vals.name) { showNameError(form); return; }
+  if (tab.nameRequired && !vals.bbaId) { showNameError(form); return; }
   const id = form.dataset.id;
   const now = Date.now();
   if (id) {
@@ -1097,7 +1097,7 @@ function openNotes(id) {
   showModal(`
     <form id="notesForm" class="modal max-w-[560px]" data-id="${p.id}" novalidate>
       <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color: var(--line)">
-        <div><h2 class="text-[17px] font-bold">Notes</h2><p class="text-muted text-[12.5px]">${esc(p.name || 'Unnamed patient')}, ${esc(p.category)}</p></div>
+        <div><h2 class="text-[17px] font-bold">Notes</h2><p class="text-muted text-[12.5px]">${esc(recLabel(p))}, ${esc(p.category)}</p></div>
         <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
       </div>
       <div class="p-6"><textarea name="notes" class="ctl" style="min-height:180px" aria-label="Notes">${esc(p.notes || '')}</textarea></div>
@@ -1115,7 +1115,7 @@ function openMove(id) {
   showModal(`
     <div class="modal max-w-[460px]" role="dialog" aria-label="Move record">
       <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color: var(--line)">
-        <div><h2 class="text-[17px] font-bold">Move to tab</h2><p class="text-muted text-[12.5px]">${esc(p.name || 'Unnamed patient')}, now in ${esc(p.category)}</p></div>
+        <div><h2 class="text-[17px] font-bold">Move to tab</h2><p class="text-muted text-[12.5px]">${esc(recLabel(p))}, now in ${esc(p.category)}</p></div>
         <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
       </div>
       <div class="p-3">
@@ -1131,7 +1131,7 @@ function openMove(id) {
 
 function moveRecord(id, to) {
   const p = state.patients.find(x => x.id === id); if (!p) return;
-  if (TAB[to].nameRequired && !p.name) {
+  if (TAB[to].nameRequired && !p.bbaId) {
     closeModal();
     openRecord(id, to, true);
     return;
@@ -1149,7 +1149,7 @@ function deleteRecord(id) {
   const [removed] = state.patients.splice(i, 1);
   savePatients();
   render();
-  toast(`Deleted ${removed.name || 'unnamed record'}`, {
+  toast(`Deleted ${recLabel(removed)}`, {
     duration: 8000,
     action: { label: 'Undo', run: () => { state.patients.splice(i, 0, removed); savePatients(); render(); } }
   });
@@ -1279,7 +1279,7 @@ function askConfirm(message, opts = {}) {
    Export & backup
    ============================================================ */
 function exportColumns(type) {
-  const cols = [['Patient Name', p => p.name || ''], ['BBA ID', p => p.bbaId || '']];
+  const cols = [['BBA ID', p => p.bbaId || '']];
   if (type === 'promo') {
     cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
       ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || '']);
@@ -1426,9 +1426,9 @@ function bind() {
     }
   });
   document.addEventListener('input', e => {
-    if (e.target.name === 'name' && e.target.form?.id === 'recordForm') {
+    if (e.target.name === 'bbaId' && e.target.form?.id === 'recordForm') {
       e.target.removeAttribute('aria-invalid');
-      const err = e.target.form.querySelector('[data-err="name"]'); if (err) err.hidden = true;
+      const err = e.target.form.querySelector('[data-err="bbaId"]'); if (err) err.hidden = true;
     }
   });
   document.addEventListener('submit', e => {
