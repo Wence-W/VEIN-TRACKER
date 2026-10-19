@@ -566,6 +566,7 @@ const paCell = p => {
   const cls = s === 'Approved' ? 'ok' : s === 'Denied' ? 'danger' : s === 'NPR' ? 'accent' : 'warn';
   return `<span class="chip ${cls}">${esc(s)}</span>${isNewApproval(p) ? '<span class="new-pill">New</span>' : ''}`;
 };
+const hasUnits = u => u !== '' && u != null;
 const treated = p => VEIN_KEYS.filter(vk => p[`${vk}_proc`] && p[`${vk}_proc`] !== 'None');
 
 function load(key, fallback) {
@@ -818,17 +819,17 @@ function renderDashboard() {
 
   // Procedure mix
   const counts = { RFA: 0, Varithena: 0, Venaseal: 0 };
-  let postDone = 0, segs = 0;
+  let txCount = 0, txWithUs = 0;
+  P.forEach(p => txList(p).forEach(t => { txCount++; if (t.postUsDate) txWithUs++; }));
   P.forEach(p => treated(p).forEach(vk => {
     const pr = p[`${vk}_proc`]; if (counts[pr] !== undefined) counts[pr]++;
-    segs++; if (p[`${vk}_post`] === 'Completed') postDone++;
   }));
   const max = Math.max(1, ...Object.values(counts));
   const pVar = { RFA: '--p-rfa', Varithena: '--p-varithena', Venaseal: '--p-venaseal' };
   $('#procMix').innerHTML = Object.entries(counts).map(([k, v]) => `
     <div><div class="flex justify-between text-[13px]"><span class="font-medium">${k}</span><span class="font-semibold">${v}</span></div>
     <div class="h-2 rounded-full mt-1" style="background: var(--sunken)"><div class="h-2 rounded-full" style="width:${(v / max) * 100}%; background: var(${pVar[k]})"></div></div></div>`).join('') +
-    `<p class="text-muted text-[12.5px] pt-2 border-t" style="border-color: var(--line)">POST AB US completed on ${postDone} of ${segs} segment${segs === 1 ? '' : 's'}.</p>`;
+    `<p class="text-muted text-[12.5px] pt-2 border-t" style="border-color: var(--line)">Post-treatment U/S recorded for ${txWithUs} of ${txCount} treatment${txCount === 1 ? '' : 's'}.</p>`;
 
   // Recent
   const recent = [...P].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6);
@@ -895,25 +896,39 @@ function veinGlyph(p) {
   const rows = SIDES.map(s => `<span class="side">${s.label[0]}</span>` + VEINS.map(v => {
     const vk = `${s.k}_${v.k}`, pr = p[`${vk}_proc`], u = p[`${vk}_units`];
     const on = pr && pr !== 'None';
-    if (on) desc.push(`${s.label} ${v.label}: ${pr}${u !== '' && u != null ? `, ${u} units` : ''}${p[`${vk}_post`] ? `, POST AB US ${p[`${vk}_post`]}` : ''}`);
+    if (on) desc.push(`${s.label} ${v.label}: ${pr}${u !== '' && u != null ? `, ${u} units` : ''}`);
     return `<span class="c" ${on ? `data-p="${esc(pr)}"` : ''} title="${esc(`${s.label} ${v.label}: ${on ? pr : 'None'}${on && u !== '' && u != null ? `, ${u} units` : ''}`)}">${on && u !== '' && u != null ? esc(u) : ''}</span>`;
   }).join('')).join('');
   return `<div class="vg" role="img" aria-label="${esc(desc.length ? desc.join('; ') : 'No veins planned')}">${rows}</div>`;
 }
-const performed = p => VEIN_KEYS.filter(vk => p[`${vk}_tx`] && p[`${vk}_tx`] !== 'None');
-const surgeryCell = p => {
-  const t = performed(p);
-  if (!p.surgeryDate && !t.length) return dash();
-  const list = t.map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()}: ${p[`${vk}_tx`]}`).join(', ');
-  return `${p.surgeryDate ? `<div class="whitespace-nowrap">${esc(fmtDate(p.surgeryDate))}</div>` : ''}${t.length ? `<div class="text-muted text-[12px] whitespace-nowrap" title="${esc(list)}">${t.length} vein${t.length === 1 ? '' : 's'} treated</div>` : ''}`;
-};
-function postSummary(p) {
-  const t = treated(p);
-  if (!t.length) return dash();
-  const done = t.filter(vk => p[`${vk}_post`] === 'Completed').length;
-  const cls = done === t.length ? 'ok' : done ? 'warn' : '';
-  return `<span class="chip ${cls}">${done} of ${t.length} done</span>`;
+/* ---------- Treatment records: a patient can have several, each with its own dates ---------- */
+const newTxId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// Older records kept one surgery in surgeryDate / <vein>_tx. Read those as the first treatment.
+function txList(p) {
+  if (Array.isArray(p.treatments)) return p.treatments;
+  const veins = {};
+  VEIN_KEYS.forEach(vk => { if (p[`${vk}_tx`] && p[`${vk}_tx`] !== 'None') veins[vk] = p[`${vk}_tx`]; });
+  return (p.surgeryDate || Object.keys(veins).length) ? [{ id: 'legacy', date: p.surgeryDate || '', postUsDate: '', veins }] : [];
 }
+const txVeins = t => VEIN_KEYS.filter(vk => t.veins?.[vk] && t.veins[vk] !== 'None');
+const txSummary = t => txVeins(t).map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()} ${t.veins[vk]}`).join(', ');
+const latestTx = p => [...txList(p)].filter(t => t.date).sort((a, b) => b.date.localeCompare(a.date))[0];
+const treatmentsCell = p => {
+  const list = txList(p);
+  if (!list.length) return dash();
+  const last = latestTx(p);
+  const tip = list.map((t, i) => `#${i + 1} ${t.date ? fmtDate(t.date) : 'no date'}: ${txSummary(t) || 'no veins entered'}`).join(' | ');
+  return `<div title="${esc(tip)}"><div class="whitespace-nowrap">${last ? esc(fmtDate(last.date)) : '<span class="text-muted">No date</span>'}</div><div class="text-muted text-[12px] whitespace-nowrap">${list.length} treatment${list.length === 1 ? '' : 's'}</div></div>`;
+};
+const postUsCell = p => {
+  const list = txList(p);
+  if (!list.length) return dash();
+  const dates = list.map(t => t.postUsDate).filter(Boolean).sort();
+  const missing = list.length - dates.length;
+  return `${dates.length ? `<div class="whitespace-nowrap">${esc(fmtDate(dates[dates.length - 1]))}</div>` : ''}${missing ? `<div class="text-[12px] whitespace-nowrap" style="color: var(--warn)">${missing} not recorded</div>` : ''}`;
+};
+// Earlier versions kept a POST AB US status per vein. It's kept on the record and shown read-only.
+const legacyPostUs = p => VEIN_KEYS.filter(vk => p[`${vk}_post`]).map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()}: ${p[`${vk}_post`]}`).join(', ');
 function msCell(p, k) {
   const date = p[k], done = !!p[k + 'Done'];
   if (!date && !done) return dash();
@@ -936,11 +951,12 @@ function columns(type) {
   const clin = [...base,
     { h: 'Surgeon', c: p => dash(p.surgeon) },
     { h: VEIN_HEAD, c: veinGlyph, raw: true }];
-  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'Initial U/S', c: usCell }, { h: 'Surgery', c: surgeryCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
+  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'Initial U/S', c: usCell }, { h: 'Treatments', c: treatmentsCell }, { h: 'Post-treatment U/S', c: postUsCell }, { h: 'Notes', c: notesCell }];
   return [...clin,
     { h: 'Auth status', c: paCell },
     { h: 'Initial U/S', c: usCell },
-    { h: 'Surgery', c: surgeryCell },
+    { h: 'Treatments', c: treatmentsCell },
+    { h: 'Post-treatment U/S', c: postUsCell },
     ...MILESTONES.map(m => ({ h: m.label, c: p => msCell(p, m.k) })),
     { h: 'New veins', c: p => p.poNewVeinsFlag ? `<span class="chip warn" title="${esc(p.poNewVeins || '')}">Yes</span>` : dash() },
     { h: 'Notes', c: notesCell }];
@@ -1009,23 +1025,43 @@ function select(name, options, val, extra = '', cls = 'ctl') {
 }
 
 function treatmentEditor(r) {
-  const cell = (s, v) => {
-    const vk = `${s.k}_${v.k}`, val = r[`${vk}_tx`] || 'None';
-    return `<td>${select(`${vk}_tx`, PROCS, val, `data-proc="${esc(val)}" aria-label="${s.label} ${v.label} treatment performed"`, 'ctl proc')}</td>`;
+  const list = txList(r);
+  const one = (t, i) => {
+    const cell = (s, v) => {
+      const vk = `${s.k}_${v.k}`, val = t.veins?.[vk] || 'None';
+      return `<td>${select(`tx_${i}_${vk}`, PROCS, val, `data-proc="${esc(val)}" aria-label="Treatment ${i + 1} ${s.label} ${v.label} treatment performed"`, 'ctl proc')}</td>`;
+    };
+    return `
+      <div class="border rounded-lg p-4 mt-3" style="border-color: var(--line)">
+        <input type="hidden" name="tx_${i}_id" value="${esc(t.id || newTxId())}">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <span class="font-semibold">Treatment ${i + 1}</span>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-quiet" data-copy-plan="${i}"><i data-feather="copy"></i>Copy procedures from plan</button>
+            <button type="button" class="btn btn-danger" data-remove-tx="${i}" aria-label="Remove treatment ${i + 1}"><i data-feather="trash-2"></i>Remove</button>
+          </div>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-4 mb-3">
+          ${field('Treatment date', input(`tx_${i}_date`, t.date, 'date'))}
+          ${field('Post-treatment U/S date', input(`tx_${i}_postUsDate`, t.postUsDate, 'date'))}
+        </div>
+        <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
+          <table class="vtable" style="min-width:520px">
+            <thead><tr><th style="text-align:right">Right leg: treatment performed</th><th class="mid">Vein</th><th>Left leg: treatment performed</th></tr></thead>
+            <tbody>${VEINS.map(v => `<tr>${cell(SIDES[0], v)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cell(SIDES[1], v)}</tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
   };
+  const legacy = legacyPostUs(r);
   return `
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-      <div class="section-h mb-0"><i data-feather="scissors"></i>Surgery</div>
-      <button type="button" class="btn btn-quiet" data-copy-plan><i data-feather="copy"></i>Copy procedures from plan</button>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="section-h mb-0"><i data-feather="scissors"></i>Treatments</div>
+      <button type="button" class="btn btn-quiet" data-add-tx><i data-feather="plus"></i>Add treatment</button>
     </div>
-    <div class="grid sm:grid-cols-3 gap-4 mb-3">${field('Surgery date', input('surgeryDate', r.surgeryDate, 'date'))}</div>
-    <p class="text-muted text-[12.5px] mb-2">Treatment performed on each vein. Units and POST AB US are recorded once, in the treatment plan above.</p>
-    <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
-      <table class="vtable" style="min-width:520px">
-        <thead><tr><th style="text-align:right">Right leg: treatment performed</th><th class="mid">Vein</th><th>Left leg: treatment performed</th></tr></thead>
-        <tbody>${VEINS.map(v => `<tr>${cell(SIDES[0], v)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cell(SIDES[1], v)}</tr>`).join('')}</tbody>
-      </table>
-    </div>`;
+    <p class="text-muted text-[12.5px] mt-1">Add one entry per treatment session. Units are recorded once, in the treatment plan above.</p>
+    ${list.length ? list.map(one).join('') : '<p class="text-muted text-[13px] mt-3 border rounded-lg p-4" style="border-color: var(--line)">No treatments recorded yet. Choose Add treatment after each session.</p>'}
+    ${legacy ? `<p class="text-[12.5px] mt-3 text-muted"><b>Earlier POST AB US status</b> (from before post-treatment U/S dates were added; kept for reference): ${esc(legacy)}</p>` : ''}`;
 }
 
 function veinSchemaEditor(r) {
@@ -1034,8 +1070,7 @@ function veinSchemaEditor(r) {
     const proc = r[`${vk}_proc`] || 'None';
     const tds = [
       `<td>${select(`${vk}_proc`, PROCS, proc, `data-proc="${esc(proc)}" aria-label="${s.label} ${v.label} procedure"`, 'ctl proc')}</td>`,
-      `<td>${input(`${vk}_units`, r[`${vk}_units`], 'number', `min="0" step="0.5" inputmode="decimal" aria-label="${s.label} ${v.label} units"`, 'ctl units')}</td>`,
-      `<td>${select(`${vk}_post`, POST_STATUS, r[`${vk}_post`] || '', `aria-label="${s.label} ${v.label} POST AB US"`)}</td>`
+      `<td>${input(`${vk}_units`, r[`${vk}_units`], 'number', `min="0" step="0.5" inputmode="decimal" aria-label="${s.label} ${v.label} units"`, 'ctl units')}</td>`
     ];
     return (mirror ? tds.reverse() : tds).join('');
   };
@@ -1047,17 +1082,17 @@ function veinSchemaEditor(r) {
       </div>
     </div>
     <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
-      <table class="vtable">
+      <table class="vtable" style="min-width:600px">
         <thead>
           <tr style="border-bottom: 1px solid var(--line)">
-            <th colspan="3" class="side-h text-right" style="text-align:right">Right leg</th>
+            <th colspan="2" class="side-h" style="text-align:right">Right leg</th>
             <th class="mid"></th>
-            <th colspan="3" class="side-h">Left leg</th>
+            <th colspan="2" class="side-h">Left leg</th>
           </tr>
           <tr>
-            <th style="text-align:right">POST AB US</th><th>Units</th><th>Procedure</th>
+            <th style="text-align:right">Units</th><th>Procedure</th>
             <th class="mid">Vein</th>
-            <th>Procedure</th><th>Units</th><th>POST AB US</th>
+            <th>Procedure</th><th>Units</th>
           </tr>
         </thead>
         <tbody>
@@ -1083,7 +1118,7 @@ function milestonesEditor(r) {
     <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
       <span class="text-muted text-[12.5px]">Have a procedure date? Fill all four milestone dates from it.</span>
       <div class="flex items-center gap-2">
-        <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date" value="${esc(r.surgeryDate || '')}">
+        <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date" value="${esc(latestTx(r)?.date || '')}">
         <button type="button" class="btn btn-quiet" data-fill-ms>Fill dates</button>
       </div>
     </div>
@@ -1127,8 +1162,23 @@ function readForm(form) {
     if (!el.name) return;
     if (el.type === 'checkbox') out[el.name] = el.checked;
     else if (el.type === 'number') out[el.name] = el.value === '' ? '' : Number(el.value);
-    else out[el.name] = el.tagName === 'TEXTAREA' ? el.value.trim() : el.value.trim();
+    else out[el.name] = el.value.trim();
   });
+  // Collect treatment entries (tx_<n>_<field>) into an array
+  const tx = {};
+  for (const k of Object.keys(out)) {
+    const m = k.match(/^tx_(\d+)_(.+)$/);
+    if (!m) continue;
+    const t = (tx[m[1]] ||= { veins: {} });
+    if (m[2] === 'id' || m[2] === 'date' || m[2] === 'postUsDate') t[m[2]] = out[k];
+    else if (out[k] && out[k] !== 'None') t.veins[m[2]] = out[k];
+    delete out[k];
+  }
+  if (form.querySelector('[data-add-tx]')) {
+    out.treatments = Object.keys(tx).sort((a, b) => a - b).map(i => ({ id: tx[i].id || newTxId(), date: tx[i].date || '', postUsDate: tx[i].postUsDate || '', veins: tx[i].veins }));
+    // The older single-surgery fields now live in the treatments list
+    out.surgeryDate = ''; VEIN_KEYS.forEach(vk => { out[`${vk}_tx`] = ''; });
+  }
   return out;
 }
 
@@ -1410,11 +1460,13 @@ function exportColumns(type) {
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
       cols.push([`${pre} Procedure`, p => p[`${vk}_proc`] || 'None'],
-        [`${pre} Units`, p => p[`${vk}_units`] === '' || p[`${vk}_units`] == null ? '' : Number(p[`${vk}_units`])],
-        [`${pre} POST AB US`, p => p[`${vk}_post`] || '']);
+        [`${pre} Units`, p => hasUnits(p[`${vk}_units`]) ? Number(p[`${vk}_units`]) : '']);
     }));
-    cols.push(['Surgery Date', p => p.surgeryDate || '']);
-    SIDES.forEach(s => VEINS.forEach(v => cols.push([`${s.k.toUpperCase()} ${v.label} Treatment Performed`, p => p[`${s.k}_${v.k}_tx`] || 'None'])));
+    cols.push(['Treatments', p => txList(p).length || ''],
+      ['Treatment Dates', p => txList(p).map(t => t.date).filter(Boolean).join('; ')],
+      ['Post-Treatment US Dates', p => txList(p).map(t => t.postUsDate).filter(Boolean).join('; ')],
+      ['Treatments Performed', p => txList(p).map(t => `${t.date || 'no date'}: ${txSummary(t) || 'none entered'}`).join('; ')],
+      ['Earlier POST AB US Status', p => legacyPostUs(p)]);
     if (type === 'po') {
       MILESTONES.forEach(m => cols.push([`${m.label} Date`, p => p[m.k] || ''], [`${m.label} Done`, p => p[m.k + 'Done'] ? 'Yes' : 'No']));
       cols.push(['New Veins To Treat', p => p.poNewVeinsFlag ? 'Yes' : 'No'], ['New Veins Details', p => p.poNewVeins || '']);
@@ -1449,6 +1501,16 @@ function exportXlsx() {
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(rows.length, 1), c: cols.length - 1 } }) };
     XLSX.utils.book_append_sheet(wb, ws, t.key.replace(/[:\\\/?*\[\]]/g, '').slice(0, 31));
   });
+  // One row per treatment session, across all tabs
+  const txRows = [];
+  state.patients.forEach(p => txList(p).forEach((t, i) => txRows.push([
+    p.bbaId || '', p.category, i + 1, t.date || '', t.postUsDate || '',
+    ...VEIN_KEYS.map(vk => t.veins?.[vk] || 'None')
+  ])));
+  const txHead = ['BBA ID', 'Tab', 'Treatment #', 'Treatment Date', 'Post-Treatment US Date', ...SIDES.flatMap(s => VEINS.map(v => `${s.k.toUpperCase()} ${v.label}`))];
+  const wsTx = XLSX.utils.aoa_to_sheet([txHead, ...txRows]);
+  wsTx['!cols'] = txHead.map(h => ({ wch: Math.max(10, h.length + 2) }));
+  XLSX.utils.book_append_sheet(wb, wsTx, 'Treatments');
   const prefix = (state.settings.exportPrefix || 'Vein_Tracker').replace(/[^\w\- ]+/g, '').trim() || 'Vein_Tracker';
   const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   saveFile(`${prefix}_${localISO()}.xlsx`, new Uint8Array(bytes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1502,7 +1564,7 @@ function bind() {
     $('#bellBtn').setAttribute('aria-expanded', String(!panel.hidden));
     renderBell();
   });
-  document.addEventListener('click', e => {
+  document.addEventListener('click', async e => {
     const t = e.target;
     if (t.closest('[data-mark-all]')) { markSeen(newApprovals().map(p => p.id)); render(); return; }
     if (!t.closest('#bellPanel') && !$('#bellPanel').hidden) { $('#bellPanel').hidden = true; $('#bellBtn').setAttribute('aria-expanded', 'false'); }
@@ -1516,16 +1578,33 @@ function bind() {
     if (t.closest('[data-add]')) { openRecord(null); return; }
     if (t.closest('[data-clear-search]')) { state.search = ''; $('#search').value = ''; renderList(); icons(); return; }
     if (t.closest('[data-close]') || t.matches('[data-backdrop]')) { closeModal(); return; }
+    if (t.closest('[data-add-tx]') || t.closest('[data-remove-tx]')) {
+      const form = $('#recordForm');
+      draft = { ...draft, ...readForm(form) };
+      const list = [...(draft.treatments || [])];
+      const rm = t.closest('[data-remove-tx]');
+      if (rm) {
+        const i = +rm.dataset.removeTx, tr = list[i];
+        if ((tr?.date || tr?.postUsDate || Object.keys(tr?.veins || {}).length) && !await askConfirm(`Remove treatment ${i + 1}${tr.date ? ` (${fmtDate(tr.date)})` : ''} from this record? It's removed when you save.`, { title: 'Remove treatment', confirmLabel: 'Remove treatment', danger: true })) return;
+        list.splice(i, 1);
+      } else list.push({ id: newTxId(), date: '', postUsDate: '', veins: {} });
+      draft.treatments = list;
+      $('#formBody').innerHTML = formBody(draft);
+      updateFormNote();
+      icons();
+      if (!rm) { const last = form.querySelectorAll('[name$="_date"][name^="tx_"]'); last[last.length - 1]?.focus(); }
+      return;
+    }
     if (t.closest('[data-copy-plan]')) {
-      const f = $('#recordForm');
+      const f = $('#recordForm'), i = t.closest('[data-copy-plan]').dataset.copyPlan;
       VEIN_KEYS.forEach(vk => {
-        const from = f.querySelector(`[name="${vk}_proc"]`), to = f.querySelector(`[name="${vk}_tx"]`);
+        const from = f.querySelector(`[name="${vk}_proc"]`), to = f.querySelector(`[name="tx_${i}_${vk}"]`);
         if (from && to) { to.value = from.value; to.dataset.proc = from.value; }
       });
       return;
     }
     if (t.closest('[data-fill-ms]')) {
-      const base = $('#procDateHelper').value || ($('#recordForm [name="surgeryDate"]')?.value || '');
+      const base = $('#procDateHelper').value || [...document.querySelectorAll('#recordForm [name^="tx_"][name$="_date"]')].map(x => x.value).filter(Boolean).sort().pop() || '';
       if (!base) { $('#procDateHelper').focus(); toast('Pick the procedure date first.', { type: 'error' }); return; }
       const d0 = new Date(base + 'T00:00:00');
       const f = $('#recordForm');
