@@ -483,7 +483,7 @@ const usCell = p => {
 };
 const PA_STATUS = [
   { v: '', l: 'Not submitted' }, { v: 'Submitted', l: 'Submitted' }, { v: 'Pending', l: 'Pending' },
-  { v: 'Approved', l: 'Approved' }, { v: 'Denied', l: 'Denied' }
+  { v: 'Approved', l: 'Approved' }, { v: 'Denied', l: 'Denied' }, { v: 'NPR', l: 'NPR' }
 ];
 const SEEN_KEY = 'vct_pages_seen_approvals';
 
@@ -563,7 +563,7 @@ function renderBell() {
 const paCell = p => {
   const s = p.paStatus || '';
   if (!s) return '<span class="text-muted">–</span>';
-  const cls = s === 'Approved' ? 'ok' : s === 'Denied' ? 'danger' : 'warn';
+  const cls = s === 'Approved' ? 'ok' : s === 'Denied' ? 'danger' : s === 'NPR' ? 'accent' : 'warn';
   return `<span class="chip ${cls}">${esc(s)}</span>${isNewApproval(p) ? '<span class="new-pill">New</span>' : ''}`;
 };
 const treated = p => VEIN_KEYS.filter(vk => p[`${vk}_proc`] && p[`${vk}_proc`] !== 'None');
@@ -900,6 +900,13 @@ function veinGlyph(p) {
   }).join('')).join('');
   return `<div class="vg" role="img" aria-label="${esc(desc.length ? desc.join('; ') : 'No veins planned')}">${rows}</div>`;
 }
+const performed = p => VEIN_KEYS.filter(vk => p[`${vk}_tx`] && p[`${vk}_tx`] !== 'None');
+const surgeryCell = p => {
+  const t = performed(p);
+  if (!p.surgeryDate && !t.length) return dash();
+  const list = t.map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()}: ${p[`${vk}_tx`]}`).join(', ');
+  return `${p.surgeryDate ? `<div class="whitespace-nowrap">${esc(fmtDate(p.surgeryDate))}</div>` : ''}${t.length ? `<div class="text-muted text-[12px] whitespace-nowrap" title="${esc(list)}">${t.length} vein${t.length === 1 ? '' : 's'} treated</div>` : ''}`;
+};
 function postSummary(p) {
   const t = treated(p);
   if (!t.length) return dash();
@@ -929,10 +936,11 @@ function columns(type) {
   const clin = [...base,
     { h: 'Surgeon', c: p => dash(p.surgeon) },
     { h: VEIN_HEAD, c: veinGlyph, raw: true }];
-  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'Initial U/S', c: usCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
+  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'Initial U/S', c: usCell }, { h: 'Surgery', c: surgeryCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
   return [...clin,
     { h: 'Auth status', c: paCell },
     { h: 'Initial U/S', c: usCell },
+    { h: 'Surgery', c: surgeryCell },
     ...MILESTONES.map(m => ({ h: m.label, c: p => msCell(p, m.k) })),
     { h: 'New veins', c: p => p.poNewVeinsFlag ? `<span class="chip warn" title="${esc(p.poNewVeins || '')}">Yes</span>` : dash() },
     { h: 'Notes', c: notesCell }];
@@ -1000,6 +1008,26 @@ function select(name, options, val, extra = '', cls = 'ctl') {
   return `<select name="${name}" class="${cls}" ${extra}>${opts.map(o => `<option value="${esc(o.v)}" ${String(o.v) === String(cur) ? 'selected' : ''}>${esc(o.l)}</option>`).join('')}</select>`;
 }
 
+function treatmentEditor(r) {
+  const cell = (s, v) => {
+    const vk = `${s.k}_${v.k}`, val = r[`${vk}_tx`] || 'None';
+    return `<td>${select(`${vk}_tx`, PROCS, val, `data-proc="${esc(val)}" aria-label="${s.label} ${v.label} treatment performed"`, 'ctl proc')}</td>`;
+  };
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div class="section-h mb-0"><i data-feather="scissors"></i>Surgery</div>
+      <button type="button" class="btn btn-quiet" data-copy-plan><i data-feather="copy"></i>Copy procedures from plan</button>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-4 mb-3">${field('Surgery date', input('surgeryDate', r.surgeryDate, 'date'))}</div>
+    <p class="text-muted text-[12.5px] mb-2">Treatment performed on each vein. Units and POST AB US are recorded once, in the treatment plan above.</p>
+    <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
+      <table class="vtable" style="min-width:520px">
+        <thead><tr><th style="text-align:right">Right leg: treatment performed</th><th class="mid">Vein</th><th>Left leg: treatment performed</th></tr></thead>
+        <tbody>${VEINS.map(v => `<tr>${cell(SIDES[0], v)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cell(SIDES[1], v)}</tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
 function veinSchemaEditor(r) {
   const cellsFor = (s, v, mirror) => {
     const vk = `${s.k}_${v.k}`;
@@ -1055,7 +1083,7 @@ function milestonesEditor(r) {
     <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
       <span class="text-muted text-[12.5px]">Have a procedure date? Fill all four milestone dates from it.</span>
       <div class="flex items-center gap-2">
-        <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date">
+        <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date" value="${esc(r.surgeryDate || '')}">
         <button type="button" class="btn btn-quiet" data-fill-ms>Fill dates</button>
       </div>
     </div>
@@ -1086,6 +1114,7 @@ function formBody(r) {
   } else {
     html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : '<div></div>'}${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}</div>`;
     html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
+    html += `<div class="mt-6">${treatmentEditor(r)}</div>`;
     if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
   }
   html += `<div class="mt-6">${field('Notes', `<textarea name="notes" class="ctl" placeholder="Authorization status, calls, reminders">${esc(r.notes || '')}</textarea>`)}</div>`;
@@ -1384,6 +1413,8 @@ function exportColumns(type) {
         [`${pre} Units`, p => p[`${vk}_units`] === '' || p[`${vk}_units`] == null ? '' : Number(p[`${vk}_units`])],
         [`${pre} POST AB US`, p => p[`${vk}_post`] || '']);
     }));
+    cols.push(['Surgery Date', p => p.surgeryDate || '']);
+    SIDES.forEach(s => VEINS.forEach(v => cols.push([`${s.k.toUpperCase()} ${v.label} Treatment Performed`, p => p[`${s.k}_${v.k}_tx`] || 'None'])));
     if (type === 'po') {
       MILESTONES.forEach(m => cols.push([`${m.label} Date`, p => p[m.k] || ''], [`${m.label} Done`, p => p[m.k + 'Done'] ? 'Yes' : 'No']));
       cols.push(['New Veins To Treat', p => p.poNewVeinsFlag ? 'Yes' : 'No'], ['New Veins Details', p => p.poNewVeins || '']);
@@ -1485,8 +1516,16 @@ function bind() {
     if (t.closest('[data-add]')) { openRecord(null); return; }
     if (t.closest('[data-clear-search]')) { state.search = ''; $('#search').value = ''; renderList(); icons(); return; }
     if (t.closest('[data-close]') || t.matches('[data-backdrop]')) { closeModal(); return; }
+    if (t.closest('[data-copy-plan]')) {
+      const f = $('#recordForm');
+      VEIN_KEYS.forEach(vk => {
+        const from = f.querySelector(`[name="${vk}_proc"]`), to = f.querySelector(`[name="${vk}_tx"]`);
+        if (from && to) { to.value = from.value; to.dataset.proc = from.value; }
+      });
+      return;
+    }
     if (t.closest('[data-fill-ms]')) {
-      const base = $('#procDateHelper').value;
+      const base = $('#procDateHelper').value || ($('#recordForm [name="surgeryDate"]')?.value || '');
       if (!base) { $('#procDateHelper').focus(); toast('Pick the procedure date first.', { type: 'error' }); return; }
       const d0 = new Date(base + 'T00:00:00');
       const f = $('#recordForm');
