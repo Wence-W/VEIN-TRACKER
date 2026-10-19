@@ -102,6 +102,12 @@
   .nav-item[aria-current="page"] { background: var(--side-active); color: #fff; }
   .nav-item[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--nav-color, #8FA8EE); }
   .nav-item .count { margin-left: auto; font-size: 12px; font-weight: 600; opacity: .8; }
+  .nav-item .new-badge + .count { margin-left: 6px; }
+  .new-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #1F9D6E; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .bell { position: relative; }
+  .bell .dot { position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #1F9D6E; color: #fff; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); }
+  .bell-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, 90vw); z-index: 55; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px rgba(10,16,27,.35); }
+  .new-pill { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: #1F9D6E; color: #fff; margin-left: 6px; }
   .nav-item .dot { width: 7px; height: 7px; border-radius: 2px; background: var(--nav-color); flex-shrink: 0; }
 
   /* Tables */
@@ -222,12 +228,13 @@
           <button type="submit" class="btn btn-primary w-full"><i data-feather="log-in"></i>Sign in</button>
         </form>
 
-        <div class="mt-9">
+        <!-- Hidden unless the address ends with ?test (for testing only) -->
+        <div class="mt-9" id="quickLoginSection" hidden>
           <div class="flex items-baseline justify-between">
             <h3 class="text-[13.5px] font-semibold">Quick sign-in</h3>
             <span class="text-muted text-[12px]">For testing</span>
           </div>
-          <div id="quickLogin" class="mt-2 panel divide-y thin-scroll max-h-[300px] overflow-y-auto" style="--tw-divide-opacity:1; border-color: var(--line)"></div>
+          <div id="quickLogin" class="mt-2 panel divide-y" style="--tw-divide-opacity:1; border-color: var(--line)"></div>
         </div>
       </div>
     </div>
@@ -267,7 +274,11 @@
         </div>
         <div id="searchWrap" class="relative w-full sm:w-64 order-last sm:order-none" hidden>
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"><i data-feather="search"></i></span>
-          <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search BBA ID, insurance, notes" aria-label="Search records in this tab">
+          <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search name, BBA ID, notes" aria-label="Search records in this tab">
+        </div>
+        <div class="relative">
+          <button id="bellBtn" class="icon-btn bell" aria-label="Approval notifications" aria-expanded="false" title="New approvals"><i data-feather="bell"></i><span id="bellCount" class="dot" hidden></span></button>
+          <div id="bellPanel" class="bell-panel" hidden></div>
         </div>
         <button id="exportBtn" class="btn btn-export" title="Download all tabs as an .xlsx workbook"><i data-feather="download"></i><span class="hidden sm:inline">Export to Spreadsheet</span><span class="sm:hidden">Export</span></button>
         <button id="addBtn" class="btn btn-primary" hidden><i data-feather="plus"></i>Add record</button>
@@ -459,6 +470,11 @@ const MILESTONES = [
 ];
 const LOCATIONS = ['ATL', 'STB', 'Newnan'];
 const IV_OPTIONS = ['', 'IV', 'Vanquish', 'Both', 'None'];
+const PA_STATUS = [
+  { v: '', l: 'Not submitted' }, { v: 'Submitted', l: 'Submitted' }, { v: 'Pending', l: 'Pending' },
+  { v: 'Approved', l: 'Approved' }, { v: 'Denied', l: 'Denied' }
+];
+const SEEN_KEY = 'vct_pages_seen_approvals';
 
 /* ============================================================
    Helpers
@@ -490,6 +506,55 @@ const icons = () => { if (window.feather) feather.replace({ 'stroke-width': 1.9 
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const groupColorVar = g => `--g-${g}`;
 const recLabel = p => p.bbaId || 'No BBA ID';
+
+/* Approval notifications: a record is "new" for the signed-in user until they open it.
+   Kept per user, in this browser. */
+function seenMap() {
+  try { const all = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}'); return all[String(state.user).toLowerCase()] || {}; }
+  catch (e) { return {}; }
+}
+function setSeen(map) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+    all[String(state.user).toLowerCase()] = map;
+    localStorage.setItem(SEEN_KEY, JSON.stringify(all));
+  } catch (e) { /* storage blocked: badges just won't clear */ }
+}
+const isNewApproval = (p, seen = seenMap()) => p.paStatus === 'Approved' && p.paApprovedAt && (seen[p.id] || 0) < p.paApprovedAt;
+const newApprovals = () => { const seen = seenMap(); return state.patients.filter(p => isNewApproval(p, seen)).sort((a, b) => b.paApprovedAt - a.paApprovedAt); };
+function markSeen(ids) {
+  const seen = seenMap();
+  ids.forEach(id => { const p = state.patients.find(x => x.id === id); if (p?.paApprovedAt) seen[id] = p.paApprovedAt; });
+  setSeen(seen);
+}
+function renderBell() {
+  const list = newApprovals();
+  const dot = $('#bellCount');
+  dot.textContent = list.length > 99 ? '99+' : String(list.length);
+  dot.hidden = list.length === 0;
+  $('#bellBtn').setAttribute('aria-label', list.length ? `${list.length} new approval${list.length === 1 ? '' : 's'}` : 'No new approvals');
+  const panel = $('#bellPanel');
+  if (panel.hidden) return;
+  panel.innerHTML = `
+    <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color: var(--line)">
+      <span class="font-semibold">New approvals</span>
+      ${list.length ? '<button class="text-[12.5px] font-semibold" style="color: var(--accent)" data-mark-all>Mark all as read</button>' : ''}
+    </div>
+    ${list.length ? `<ul class="max-h-[360px] overflow-y-auto thin-scroll">${list.map(p => `
+      <li><button class="w-full text-left px-4 py-2.5 hover:bg-sunken flex items-start gap-3" data-edit="${p.id}">
+        <span class="mt-1.5 w-2 h-2 rounded-full shrink-0" style="background:#1F9D6E"></span>
+        <span class="min-w-0"><span class="font-semibold block">${esc(recLabel(p))} approved</span>
+        <span class="text-muted text-[12.5px] block">${esc(p.category)} · ${esc(relTime(p.paApprovedAt))}${p.paApprovedBy ? ' by ' + esc(p.paApprovedBy) : ''}</span></span>
+      </button></li>`).join('')}</ul>`
+    : '<p class="px-4 py-6 text-muted text-[13px]">No new approvals. You’ll see one here when a record’s authorization status changes to Approved.</p>'}`;
+  icons();
+}
+const paCell = p => {
+  const s = p.paStatus || '';
+  if (!s) return '<span class="text-muted">–</span>';
+  const cls = s === 'Approved' ? 'ok' : s === 'Denied' ? 'danger' : 'warn';
+  return `<span class="chip ${cls}">${esc(s)}</span>${isNewApproval(p) ? '<span class="new-pill">New</span>' : ''}`;
+};
 const treated = p => VEIN_KEYS.filter(vk => p[`${vk}_proc`] && p[`${vk}_proc`] !== 'None');
 
 function load(key, fallback) {
@@ -515,8 +580,8 @@ function demoRecords() {
     { category: 'Promo', bbaId: '', insurance: 'BCBS', location: 'ATL', datePromo: addDays(-6), ivVanquish: 'IV', usDate: addDays(3), notes: 'Inquiry from community screening event.' },
     { category: 'Promo', bbaId: '', insurance: 'Aetna', location: 'Newnan', datePromo: addDays(-2), ivVanquish: 'Vanquish', usDate: '', notes: '' },
     { category: 'Procter Pay Attention', bbaId: 'BBA-1120', r_gsv_proc: 'RFA', r_gsv_units: 1, notes: 'Review prior ultrasound before scheduling.' },
-    { category: 'Dr. Procter', bbaId: 'BBA-1042', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Scheduled', l_gsv_proc: 'RFA', l_gsv_units: 1, l_ssv_proc: 'Varithena', l_ssv_units: 2, notes: 'Authorization submitted.' },
-    { category: 'Dr. Danthuluri', bbaId: 'BBA-1077', surgeon: 'Dr. V. Danthuluri', l_pasv_proc: 'Venaseal', l_pasv_units: 1, r_btk_proc: 'Varithena', r_btk_units: 3, r_btk_post: 'Ordered', notes: '' },
+    { category: 'Dr. Procter', bbaId: 'BBA-1042', surgeon: 'Dr. Charles Procter', paStatus: 'Submitted', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Scheduled', l_gsv_proc: 'RFA', l_gsv_units: 1, l_ssv_proc: 'Varithena', l_ssv_units: 2, notes: 'Authorization submitted.' },
+    { category: 'Dr. Danthuluri', bbaId: 'BBA-1077', surgeon: 'Dr. V. Danthuluri', paStatus: 'Approved', paApprovedAt: now, paApprovedBy: 'Demo data', l_pasv_proc: 'Venaseal', l_pasv_units: 1, r_btk_proc: 'Varithena', r_btk_units: 3, r_btk_post: 'Ordered', notes: '' },
     { category: 'PO Vein FU', bbaId: 'BBA-0988', surgeon: 'Dr. Charles Procter', r_gsv_proc: 'RFA', r_gsv_units: 1, r_gsv_post: 'Completed', po30Day: addDays(-40), po30DayDone: true, po3Month: addDays(5), po6Month: addDays(95), po12Month: addDays(280), notes: '' },
     { category: 'PO Vein FU', bbaId: 'BBA-1150', surgeon: 'Dr. V. Danthuluri', l_gsv_proc: 'Venaseal', l_gsv_units: 1, l_gsv_post: 'Completed', po30Day: addDays(-3), po3Month: addDays(57), po6Month: addDays(147), po12Month: addDays(332), poNewVeinsFlag: true, poNewVeins: 'Possible right SSV reflux, recheck at 3 months.', notes: '' },
     { category: 'PA DENIED', bbaId: 'BBA-1101', surgeon: 'Dr. Charles Procter', r_ssv_proc: 'RFA', r_ssv_units: 1, notes: 'Denied: conservative therapy not documented. Appeal pending.' },
@@ -579,6 +644,9 @@ function toast(msg, opts = {}) {
    Auth
    ============================================================ */
 function renderLogin() {
+  const testMode = new URLSearchParams(location.search).has('test');
+  $('#quickLoginSection').hidden = !testMode;
+  if (!testMode) { $('#quickLogin').innerHTML = ''; return; }
   $('#quickLogin').innerHTML = state.users.map(u => `
     <button type="button" data-quick="${esc(u)}" class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-sunken" style="border-color: var(--line)">
       <span class="w-7 h-7 rounded-full flex items-center justify-center text-[11.5px] font-bold shrink-0" style="background: var(--accent-soft); color: var(--accent)">${esc(u[0].toUpperCase())}</span>
@@ -642,6 +710,7 @@ function closeSidebar() { $('#sidebar').classList.add('-translate-x-full'); $('#
 
 function renderSidebar() {
   const count = k => state.patients.filter(p => p.category === k).length;
+  const seen = seenMap();
   const item = (key, label, icon, extra = '', color = '') => `
     <button class="nav-item" data-nav="${esc(key)}" ${state.view === key ? 'aria-current="page"' : ''} ${color ? `style="--nav-color: var(${color})"` : ''}>
       <i data-feather="${icon}"></i><span class="truncate">${esc(label)}</span>${extra}
@@ -650,7 +719,9 @@ function renderSidebar() {
   Object.entries(GROUPS).forEach(([g, gl]) => {
     html += `<div class="nav-group">${gl}</div>`;
     TABS.filter(t => t.group === g).forEach(t => {
-      html += item(t.key, t.key, t.icon, `<span class="count">${count(t.key)}</span>`, groupColorVar(g));
+      const fresh = state.patients.filter(p => p.category === t.key && isNewApproval(p, seen)).length;
+      const badge = fresh ? `<span class="new-badge" title="${fresh} new approval${fresh === 1 ? '' : 's'}">${fresh}</span>` : '';
+      html += item(t.key, t.key, t.icon, `${badge}<span class="count">${count(t.key)}</span>`, groupColorVar(g));
     });
   });
   html += `<div class="nav-group">Administration</div>`;
@@ -677,6 +748,7 @@ function render() {
   document.body.classList.toggle('compact', !!state.settings.compactRows);
   renderSidebar();
   renderHeader();
+  renderBell();
   const kind = viewKind();
   ['dashboard', 'list', 'surgeons', 'users', 'settings'].forEach(v => $('#view-' + v).hidden = kind !== v);
   if (kind === 'dashboard') renderDashboard();
@@ -846,8 +918,9 @@ function columns(type) {
   const clin = [...base,
     { h: 'Surgeon', c: p => dash(p.surgeon) },
     { h: VEIN_HEAD, c: veinGlyph, raw: true }];
-  if (type === 'clinical') return [...clin, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
+  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
   return [...clin,
+    { h: 'Auth status', c: paCell },
     ...MILESTONES.map(m => ({ h: m.label, c: p => msCell(p, m.k) })),
     { h: 'New veins', c: p => p.poNewVeinsFlag ? `<span class="chip warn" title="${esc(p.poNewVeins || '')}">Yes</span>` : dash() },
     { h: 'Notes', c: notesCell }];
@@ -857,7 +930,7 @@ function rowsFor(tabKey) {
   const q = state.search.toLowerCase().trim();
   return state.patients
     .filter(p => p.category === tabKey)
-    .filter(p => !q || [p.bbaId, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins]
+    .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins, p.paStatus]
       .some(v => String(v || '').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -987,6 +1060,7 @@ function formBody(r) {
     <div class="grid sm:grid-cols-3 gap-4">
       ${field('Tab', select('category', TABS.map(t => t.key), r.category))}
       ${field('BBA ID', input('bbaId', r.bbaId, 'text', 'autocomplete="off"'), { req: tab.nameRequired, opt: !tab.nameRequired, err: 'bbaId' })}
+      ${field('Patient name', input('name', r.name, 'text', 'autocomplete="off"'), { opt: true })}
     </div>`;
   if (tab.type === 'promo') {
     html += `
@@ -998,7 +1072,7 @@ function formBody(r) {
         ${field('US date', input('usDate', r.usDate, 'date'), {})}
       </div>`;
   } else {
-    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}</div>`;
+    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : ''}</div>`;
     html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
     if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
   }
@@ -1021,6 +1095,8 @@ let draft = null;
 function openRecord(id, presetCategory, focusError) {
   const existing = id ? state.patients.find(p => p.id === id) : null;
   if (id && !existing) return;
+  if (existing && isNewApproval(existing)) { markSeen([existing.id]); render(); }
+  $('#bellPanel').hidden = true; $('#bellBtn').setAttribute('aria-expanded', 'false');
   const category = presetCategory || existing?.category || state.view;
   draft = existing ? { ...existing, category } : { category, surgeon: '' };
   if (!existing) {
@@ -1077,6 +1153,9 @@ function saveRecord(form) {
   if (tab.nameRequired && !vals.bbaId) { showNameError(form); return; }
   const id = form.dataset.id;
   const now = Date.now();
+  const before = id ? state.patients.find(p => p.id === id) : null;
+  if (vals.paStatus === 'Approved' && before?.paStatus !== 'Approved') { vals.paApprovedAt = now; vals.paApprovedBy = state.user; }
+  else if (vals.paStatus !== 'Approved' && 'paStatus' in vals) { vals.paApprovedAt = ''; vals.paApprovedBy = ''; }
   if (id) {
     const i = state.patients.findIndex(p => p.id === id);
     if (i === -1) return;
@@ -1284,7 +1363,8 @@ function exportColumns(type) {
     cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
       ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || '']);
   } else {
-    cols.push(['Surgeon', p => p.surgeon || '']);
+    cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
+      ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
       cols.push([`${pre} Procedure`, p => p[`${vk}_proc`] || 'None'],
@@ -1371,8 +1451,17 @@ function bind() {
   $('#search').addEventListener('input', e => { state.search = e.target.value; renderList(); icons(); });
 
   // Delegated clicks for nav, tables, dashboard lists, modals
+  $('#bellBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = $('#bellPanel');
+    panel.hidden = !panel.hidden;
+    $('#bellBtn').setAttribute('aria-expanded', String(!panel.hidden));
+    renderBell();
+  });
   document.addEventListener('click', e => {
     const t = e.target;
+    if (t.closest('[data-mark-all]')) { markSeen(newApprovals().map(p => p.id)); render(); return; }
+    if (!t.closest('#bellPanel') && !$('#bellPanel').hidden) { $('#bellPanel').hidden = true; $('#bellBtn').setAttribute('aria-expanded', 'false'); }
     const nav = t.closest('[data-nav]'); if (nav && !nav.disabled) { navigate(nav.dataset.nav); return; }
     const ms = t.closest('[data-ms]'); if (ms) { toggleMilestone(ms.dataset.id, ms.dataset.ms); return; }
     const ed = t.closest('[data-edit]'); if (ed) { openRecord(ed.dataset.edit); return; }
@@ -1441,7 +1530,7 @@ function bind() {
     }
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { if ($('#modalRoot').innerHTML) closeModal(); else closeSidebar(); }
+    if (e.key === 'Escape') { if (!$('#bellPanel').hidden) { $('#bellPanel').hidden = true; $('#bellBtn').setAttribute('aria-expanded', 'false'); } else if ($('#modalRoot').innerHTML) closeModal(); else closeSidebar(); }
   });
 
   // Admin forms
