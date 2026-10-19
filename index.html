@@ -121,7 +121,7 @@
   .notes-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 
   /* Vein map glyph: patient's right on viewer's left, like facing the patient */
-  .vg { display: grid; grid-template-columns: 14px repeat(4, 30px); gap: 3px; align-items: center; }
+  .vg { display: grid; grid-template-columns: 14px repeat(5, 30px); gap: 3px; align-items: center; }
   .vg .side { font-size: 10.5px; font-weight: 700; color: var(--muted); }
   .vg .ax { font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; }
   .vg .c { height: 16px; border-radius: 3px; border: 1px dashed var(--line-strong); font-size: 10.5px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; }
@@ -452,7 +452,8 @@ const ADMIN = [
 const VEINS = [
   { k: 'gsv', label: 'GSV', full: 'Great saphenous' },
   { k: 'ssv', label: 'SSV', full: 'Small saphenous' },
-  { k: 'pasv', label: 'PASV', full: 'Accessory saphenous' },
+  { k: 'pasv', label: 'PASV', full: 'Posterior accessory saphenous' },
+  { k: 'aasv', label: 'AASV', full: 'Anterior accessory saphenous' },
   { k: 'btk', label: 'BTK', full: 'Below the knee' }
 ];
 const SIDES = [{ k: 'r', label: 'Right' }, { k: 'l', label: 'Left' }];
