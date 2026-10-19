@@ -471,6 +471,16 @@ const MILESTONES = [
 ];
 const LOCATIONS = ['ATL', 'STB', 'Newnan'];
 const IV_OPTIONS = ['', 'IV', 'Vanquish', 'Both', 'None'];
+const INITIAL_US = [
+  { v: '', l: 'Not received' }, { v: 'Requested', l: 'Requested' }, { v: 'Received', l: 'Received' },
+  { v: 'Reviewed', l: 'Reviewed' }, { v: 'Not needed', l: 'Not needed' }
+];
+const usCell = p => {
+  const s = p.initialUsStatus || '';
+  if (!s && !p.initialUsDate) return '<span class="text-muted">–</span>';
+  const cls = s === 'Reviewed' || s === 'Received' ? 'ok' : s === 'Requested' ? 'warn' : '';
+  return `${s ? `<span class="chip ${cls}">${esc(s)}</span>` : ''}${p.initialUsDate ? `<div class="text-muted text-[12px] mt-0.5 whitespace-nowrap">${esc(fmtDate(p.initialUsDate))}</div>` : ''}`;
+};
 const PA_STATUS = [
   { v: '', l: 'Not submitted' }, { v: 'Submitted', l: 'Submitted' }, { v: 'Pending', l: 'Pending' },
   { v: 'Approved', l: 'Approved' }, { v: 'Denied', l: 'Denied' }
@@ -919,9 +929,10 @@ function columns(type) {
   const clin = [...base,
     { h: 'Surgeon', c: p => dash(p.surgeon) },
     { h: VEIN_HEAD, c: veinGlyph, raw: true }];
-  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
+  if (type === 'clinical') return [...clin, { h: 'Auth status', c: paCell }, { h: 'Initial U/S', c: usCell }, { h: 'POST AB US', c: postSummary }, { h: 'Notes', c: notesCell }];
   return [...clin,
     { h: 'Auth status', c: paCell },
+    { h: 'Initial U/S', c: usCell },
     ...MILESTONES.map(m => ({ h: m.label, c: p => msCell(p, m.k) })),
     { h: 'New veins', c: p => p.poNewVeinsFlag ? `<span class="chip warn" title="${esc(p.poNewVeins || '')}">Yes</span>` : dash() },
     { h: 'Notes', c: notesCell }];
@@ -931,7 +942,7 @@ function rowsFor(tabKey) {
   const q = state.search.toLowerCase().trim();
   return state.patients
     .filter(p => p.category === tabKey)
-    .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins, p.paStatus]
+    .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins, p.paStatus, p.initialUsStatus]
       .some(v => String(v || '').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -1073,7 +1084,7 @@ function formBody(r) {
         ${field('US date', input('usDate', r.usDate, 'date'), {})}
       </div>`;
   } else {
-    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : ''}</div>`;
+    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : '<div></div>'}${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}</div>`;
     html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
     if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
   }
@@ -1365,6 +1376,7 @@ function exportColumns(type) {
       ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || '']);
   } else {
     cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
+      ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''],
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
