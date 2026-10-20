@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<headsb_publishable_tUX1AWtOSNPwWu-EMrlSgw_y0PCwCpM>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
@@ -911,7 +911,7 @@ function txList(p) {
   if (Array.isArray(p.treatments)) return p.treatments;
   const veins = {};
   VEIN_KEYS.forEach(vk => { if (p[`${vk}_tx`] && p[`${vk}_tx`] !== 'None') veins[vk] = p[`${vk}_tx`]; });
-  return (p.surgeryDate || Object.keys(veins).length) ? [{ id: 'legacy', date: p.surgeryDate || '', postUsDate: '', veins }] : [];
+  return (p.surgeryDate || Object.keys(veins).length) ? [{ id: 'legacy', date: p.surgeryDate || '', postUsDate: '', surgeon: p.surgeon || '', veins }] : [];
 }
 const txVeins = t => VEIN_KEYS.filter(vk => t.veins?.[vk] && t.veins[vk] !== 'None');
 const txSummary = t => txVeins(t).map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()} ${t.veins[vk]}`).join(', ');
@@ -920,7 +920,7 @@ const treatmentsCell = p => {
   const list = txList(p);
   if (!list.length) return dash();
   const last = latestTx(p);
-  const tip = list.map((t, i) => `#${i + 1} ${t.date ? fmtDate(t.date) : 'no date'}: ${txSummary(t) || 'no veins entered'}`).join(' | ');
+  const tip = list.map((t, i) => `#${i + 1} ${t.date ? fmtDate(t.date) : 'no date'}${t.surgeon ? ` (${t.surgeon})` : ''}: ${txSummary(t) || 'no veins entered'}`).join(' | ');
   return `<div title="${esc(tip)}"><div class="whitespace-nowrap">${last ? esc(fmtDate(last.date)) : '<span class="text-muted">No date</span>'}</div><div class="text-muted text-[12px] whitespace-nowrap">${list.length} treatment${list.length === 1 ? '' : 's'}</div></div>`;
 };
 const postUsCell = p => {
@@ -1047,6 +1047,7 @@ function treatmentEditor(r) {
         <div class="grid sm:grid-cols-3 gap-4 mb-3">
           ${field('Treatment date', input(`tx_${i}_date`, t.date, 'date'))}
           ${field('Post-treatment U/S date', input(`tx_${i}_postUsDate`, t.postUsDate, 'date'))}
+          ${field('Performing surgeon', select(`tx_${i}_surgeon`, [{ v: '', l: 'Select surgeon' }, ...state.surgeons], t.surgeon || ''))}
         </div>
         <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
           <table class="vtable" style="min-width:520px">
@@ -1173,12 +1174,12 @@ function readForm(form) {
     const m = k.match(/^tx_(\d+)_(.+)$/);
     if (!m) continue;
     const t = (tx[m[1]] ||= { veins: {} });
-    if (m[2] === 'id' || m[2] === 'date' || m[2] === 'postUsDate') t[m[2]] = out[k];
+    if (m[2] === 'id' || m[2] === 'date' || m[2] === 'postUsDate' || m[2] === 'surgeon') t[m[2]] = out[k];
     else if (out[k] && out[k] !== 'None') t.veins[m[2]] = out[k];
     delete out[k];
   }
   if (form.querySelector('[data-add-tx]')) {
-    out.treatments = Object.keys(tx).sort((a, b) => a - b).map(i => ({ id: tx[i].id || newTxId(), date: tx[i].date || '', postUsDate: tx[i].postUsDate || '', veins: tx[i].veins }));
+    out.treatments = Object.keys(tx).sort((a, b) => a - b).map(i => ({ id: tx[i].id || newTxId(), date: tx[i].date || '', postUsDate: tx[i].postUsDate || '', surgeon: tx[i].surgeon || '', veins: tx[i].veins }));
     // The older single-surgery fields now live in the treatments list
     out.surgeryDate = ''; VEIN_KEYS.forEach(vk => { out[`${vk}_tx`] = ''; });
   }
@@ -1478,7 +1479,7 @@ function exportColumns(type) {
     cols.push(['Treatments', p => txList(p).length || ''],
       ['Treatment Dates', p => txList(p).map(t => t.date).filter(Boolean).join('; ')],
       ['Post-Treatment US Dates', p => txList(p).map(t => t.postUsDate).filter(Boolean).join('; ')],
-      ['Treatments Performed', p => txList(p).map(t => `${t.date || 'no date'}: ${txSummary(t) || 'none entered'}`).join('; ')],
+      ['Treatments Performed', p => txList(p).map(t => `${t.date || 'no date'}${t.surgeon ? ` (${t.surgeon})` : ''}: ${txSummary(t) || 'none entered'}`).join('; ')],
       ['Earlier POST AB US Status', p => legacyPostUs(p)]);
     if (type === 'po') {
       MILESTONES.forEach(m => cols.push([`${m.label} Date`, p => p[m.k] || ''], [`${m.label} Done`, p => p[m.k + 'Done'] ? 'Yes' : 'No']));
@@ -1517,10 +1518,10 @@ function exportXlsx() {
   // One row per treatment session, across all tabs
   const txRows = [];
   state.patients.forEach(p => txList(p).forEach((t, i) => txRows.push([
-    p.bbaId || '', p.category, i + 1, t.date || '', t.postUsDate || '',
+    p.bbaId || '', p.category, i + 1, t.date || '', t.postUsDate || '', t.surgeon || '',
     ...VEIN_KEYS.map(vk => t.veins?.[vk] || 'None')
   ])));
-  const txHead = ['BBA ID', 'Tab', 'Treatment #', 'Treatment Date', 'Post-Treatment US Date', ...SIDES.flatMap(s => VEINS.map(v => `${s.k.toUpperCase()} ${v.label}`))];
+  const txHead = ['BBA ID', 'Tab', 'Treatment #', 'Treatment Date', 'Post-Treatment US Date', 'Performing Surgeon', ...SIDES.flatMap(s => VEINS.map(v => `${s.k.toUpperCase()} ${v.label}`))];
   const wsTx = XLSX.utils.aoa_to_sheet([txHead, ...txRows]);
   wsTx['!cols'] = txHead.map(h => ({ wch: Math.max(10, h.length + 2) }));
   XLSX.utils.book_append_sheet(wb, wsTx, 'Treatments');
@@ -1600,7 +1601,7 @@ function bind() {
         const i = +rm.dataset.removeTx, tr = list[i];
         if ((tr?.date || tr?.postUsDate || Object.keys(tr?.veins || {}).length) && !await askConfirm(`Delete treatment ${i + 1}${tr.date ? ` (${fmtDate(tr.date)})` : ''}? It is removed for everyone when you choose Save record.`, { title: 'Delete treatment', confirmLabel: 'Delete treatment', danger: true })) return;
         list.splice(i, 1);
-      } else list.push({ id: newTxId(), date: '', postUsDate: '', veins: {} });
+      } else list.push({ id: newTxId(), date: '', postUsDate: '', surgeon: draft.surgeon || '', veins: {} });
       draft.treatments = list;
       $('#formBody').innerHTML = formBody(draft);
       updateFormNote();
