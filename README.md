@@ -5,6 +5,9 @@ The Vein Pre-Authorization & Treatment Tracker as a standalone web app. Staff op
 The tabs, forms, dropdowns, vein schema, PO milestones, search, dashboard, chart and Excel export all match the tracker. It includes every change made on the GitHub Pages version (BBA ID as the record identifier, Patient name on the form, authorization status, the AASV vein), plus:
 
 - **Shared records.** Everything any user adds or changes appears for everyone, within about 15 seconds.
+- **Deleting records.** Each record has a Delete button, in its row and inside the record form. Treatment entries can be deleted one at a time. Every delete asks for confirmation first, and deleted records disappear for everyone. A deleted record can't come back through syncing or by re-importing an old backup. The person who deleted it can undo the delete for a few seconds.
+- **No demo data.** The app never creates sample records. When it starts, it removes any sample records that were brought in from older versions: records marked as demo, or named like "Demo Patient B". Real records are never touched.
+- **Multiple treatments per patient.** Each treatment session is its own entry, with a treatment date, a post-treatment U/S date, and the procedure performed on each vein. Units stay in the treatment plan. The spreadsheet export adds a Treatments sheet with one row per session.
 - **Initial U/S.** A status (Not received, Requested, Received, Reviewed, Not needed) and a date on every tab except Promo. Promo keeps its US Date field.
 - **Shared notifications.** When another user adds, changes, moves, approves or deletes a record, you get notified. Each notification shows the BBA ID, what changed and when. Notifications appear in these places:
   - **Bell icon:** in the header, with the number of unread notifications.
