@@ -517,6 +517,8 @@ const icons = () => { if (window.feather) feather.replace({ 'stroke-width': 1.9 
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const groupColorVar = g => `--g-${g}`;
 const recLabel = p => p.bbaId || 'No BBA ID';
+// Sample records shipped with early versions: flagged demo, or still carrying a seeded "Demo Patient X" name
+const isDemo = p => p.demo === true || /^Demo Patient [A-Z]$/.test(String(p.name || '').trim());
 
 /* Approval notifications: a record is "new" for the signed-in user until they open it.
    Kept per user, in this browser. */
@@ -622,10 +624,11 @@ function loadAll() {
   state.settings = { ...DEFAULT_SETTINGS, ...(load(LS.settings, {}) || {}) };
   const saved = load(LS.patients, null);
   if (Array.isArray(saved)) {
-    state.patients = saved.map(normalizePatient);
+    const all = saved.map(normalizePatient);
+    state.patients = all.filter(p => !isDemo(p));
+    if (state.patients.length !== all.length) store(LS.patients, state.patients); // sample records removed, real ones untouched
   } else {
-    state.patients = demoRecords();
-    store(LS.patients, state.patients);
+    state.patients = []; // no sample data: start empty
   }
   if (!localStorage.getItem(LS.users)) store(LS.users, state.users);
   if (!localStorage.getItem(LS.surgeons)) store(LS.surgeons, state.surgeons);
@@ -1038,7 +1041,7 @@ function treatmentEditor(r) {
           <span class="font-semibold">Treatment ${i + 1}</span>
           <div class="flex gap-2">
             <button type="button" class="btn btn-quiet" data-copy-plan="${i}"><i data-feather="copy"></i>Copy procedures from plan</button>
-            <button type="button" class="btn btn-danger" data-remove-tx="${i}" aria-label="Remove treatment ${i + 1}"><i data-feather="trash-2"></i>Remove</button>
+            <button type="button" class="btn btn-danger" data-remove-tx="${i}" aria-label="Delete treatment ${i + 1}"><i data-feather="trash-2"></i>Delete</button>
           </div>
         </div>
         <div class="grid sm:grid-cols-3 gap-4 mb-3">
@@ -1209,7 +1212,10 @@ function openRecord(id, presetCategory, focusError) {
       </div>
       <div class="px-6 py-5" id="formBody">${formBody(draft)}</div>
       <div class="px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--line); background: var(--sunken); border-radius: 0 0 12px 12px">
-        <p class="text-muted text-[12.5px]">${meta}</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          ${existing ? `<button type="button" class="btn btn-danger" data-del="${esc(existing.id)}"><i data-feather="trash-2"></i>Delete record</button>` : ''}
+          <p class="text-muted text-[12.5px]">${meta}</p>
+        </div>
         <div class="flex gap-2 ml-auto">
           <button type="button" class="btn btn-quiet" data-close>Cancel</button>
           <button type="submit" class="btn btn-primary"><i data-feather="check"></i>Save record</button>
@@ -1314,10 +1320,17 @@ function moveRecord(id, to) {
   render();
 }
 
-function deleteRecord(id) {
+async function deleteRecord(id) {
+  const p = state.patients.find(x => x.id === id); if (!p) return;
+  const n = txList(p).length;
+  const ok = await askConfirm(
+    `Delete ${recLabel(p)} from ${p.category}${n ? `, including ${n} treatment entr${n === 1 ? 'y' : 'ies'}` : ''}? This can’t be undone after you leave the page.`,
+    { title: 'Delete record', confirmLabel: 'Delete record', danger: true });
+  if (!ok) return;
   const i = state.patients.findIndex(x => x.id === id); if (i === -1) return;
   const [removed] = state.patients.splice(i, 1);
   savePatients();
+  closeModal();
   render();
   toast(`Deleted ${recLabel(removed)}`, {
     duration: 8000,
@@ -1377,7 +1390,7 @@ function renderSettings() {
   f.elements.defaultLocation.value = state.settings.defaultLocation;
   f.elements.exportPrefix.value = state.settings.exportPrefix;
   f.elements.compactRows.checked = !!state.settings.compactRows;
-  $('#removeDemoBtn').disabled = !state.patients.some(p => p.demo);
+  $('#removeDemoBtn').disabled = !state.patients.some(isDemo);
   $('#removeDemoBtn').style.opacity = $('#removeDemoBtn').disabled ? .5 : 1;
 }
 
@@ -1530,7 +1543,7 @@ function restoreBackup(file) {
     try { data = JSON.parse(reader.result); } catch (e) { toast('That file is not a valid backup. Choose a .json file downloaded from this tracker.', { type: 'error' }); return; }
     if (!data || !Array.isArray(data.patients)) { toast('That file has no patient records. Choose a backup downloaded from this tracker.', { type: 'error' }); return; }
     if (!await askConfirm(`Replace all current data with this backup (${data.patients.length} records)? This can't be undone.`, { title: 'Restore backup', confirmLabel: 'Replace data', danger: true })) return;
-    state.patients = data.patients.map(normalizePatient);
+    state.patients = data.patients.map(normalizePatient).filter(p => !isDemo(p));
     if (Array.isArray(data.surgeons)) state.surgeons = data.surgeons.filter(s => typeof s === 'string');
     if (Array.isArray(data.users) && data.users.length) state.users = data.users.filter(isEmail);
     if (data.settings && typeof data.settings === 'object') state.settings = { ...DEFAULT_SETTINGS, ...data.settings };
@@ -1585,7 +1598,7 @@ function bind() {
       const rm = t.closest('[data-remove-tx]');
       if (rm) {
         const i = +rm.dataset.removeTx, tr = list[i];
-        if ((tr?.date || tr?.postUsDate || Object.keys(tr?.veins || {}).length) && !await askConfirm(`Remove treatment ${i + 1}${tr.date ? ` (${fmtDate(tr.date)})` : ''} from this record? It's removed when you save.`, { title: 'Remove treatment', confirmLabel: 'Remove treatment', danger: true })) return;
+        if ((tr?.date || tr?.postUsDate || Object.keys(tr?.veins || {}).length) && !await askConfirm(`Delete treatment ${i + 1}${tr.date ? ` (${fmtDate(tr.date)})` : ''}? It is removed for everyone when you choose Save record.`, { title: 'Delete treatment', confirmLabel: 'Delete treatment', danger: true })) return;
         list.splice(i, 1);
       } else list.push({ id: newTxId(), date: '', postUsDate: '', veins: {} });
       draft.treatments = list;
@@ -1705,9 +1718,9 @@ function bind() {
   $('#backupBtn').addEventListener('click', downloadBackup);
   $('#restoreInput').addEventListener('change', e => { if (e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ''; });
   $('#removeDemoBtn').addEventListener('click', async () => {
-    const n = state.patients.filter(p => p.demo).length;
+    const n = state.patients.filter(isDemo).length;
     if (!n || !await askConfirm(`Remove ${n} demo record${n > 1 ? 's' : ''}? Records you have edited are kept.`, { title: 'Remove demo records', confirmLabel: 'Remove demo records' })) return;
-    state.patients = state.patients.filter(p => !p.demo); savePatients(); render(); toast(`Removed ${n} demo records`);
+    state.patients = state.patients.filter(p => !isDemo(p)); savePatients(); render(); toast(`Removed ${n} demo records`);
   });
   $('#wipeBtn').addEventListener('click', async () => {
     if (!await askConfirm(`This deletes all ${state.patients.length} patient records from this browser.`, { title: 'Delete all records', confirmLabel: 'Delete all records', danger: true, requireText: 'DELETE' })) return;
