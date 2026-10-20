@@ -1474,7 +1474,7 @@ function exportColumns(type) {
 <div class="field">
   <label class="lbl" for="ultrasoundRemapDate">Ultrasound Remap Date</label>
   <input type="date" id="ultrasoundRemapDate" name="ultrasoundRemapDate" class="ctl w-full" />
-</div>
+
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
