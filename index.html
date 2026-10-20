@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<headsb_publishable_tUX1AWtOSNPwWu-EMrlSgw_y0PCwCpM>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
@@ -1149,9 +1149,10 @@ function formBody(r) {
         ${field('IV or Vanquish', select('ivVanquish', IV_OPTIONS, r.ivVanquish || ''))}
         ${field('Date promo', input('datePromo', r.datePromo, 'date'))}
         ${field('US date', input('usDate', r.usDate, 'date'), {})}
+        ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}
       </div>`;
   } else {
-    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : '<div></div>'}${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}</div>`;
+    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : '<div></div>'}${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}</div>`;
     html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
     html += `<div class="mt-6">${treatmentEditor(r)}</div>`;
     if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
@@ -1466,15 +1467,10 @@ function exportColumns(type) {
   const cols = [['BBA ID', p => p.bbaId || '']];
   if (type === 'promo') {
     cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
-      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || '']);
+      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || ''], ['US Remap Date', p => p.usRemapDate || '']);
   } else {
     cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
-      ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''],
-  <!-- Ultrasound Remap Date -->
-<div class="field">
-  <label class="lbl" for="ultrasoundRemapDate">Ultrasound Remap Date</label>
-  <input type="date" id="ultrasoundRemapDate" name="ultrasoundRemapDate" class="ctl w-full" />
-
+      ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''], ['US Remap Date', p => p.usRemapDate || ''],
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
