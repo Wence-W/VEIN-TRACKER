@@ -1470,9 +1470,9 @@ function exportColumns(type) {
   } else {
     cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
       ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''],
-              <!-- Ultrasound Remap Date -->
-<div>
-  <label class="block text-sm font-medium mb-1">Ultrasound Remap Date</label>
+  <!-- Ultrasound Remap Date -->
+<div class="field">
+  <label class="lbl" for="ultrasoundRemapDate">Ultrasound Remap Date</label>
   <input type="date" id="ultrasoundRemapDate" name="ultrasoundRemapDate" class="ctl w-full" />
 </div>
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
