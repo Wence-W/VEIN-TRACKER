@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<headsb_publishable_tUX1AWtOSNPwWu-EMrlSgw_y0PCwCpM>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
@@ -41,8 +41,7 @@
     --p-rfa: #C8582A; --p-varithena: #7448C2; --p-venaseal: #0F8A83;
     --g-intake: #B07A16; --g-surgeon: #2D4EA2; --g-postop: #0E7660; --g-closed: #9C3A3A;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
+  :root[data-theme="dark"] {
       color-scheme: dark;
       --bg: #0E1420; --surface: #161F2F; --sunken: #121A28;
       --ink: #E5EAF2; --muted: #97A2B4; --line: #26324A; --line-strong: #36445E;
@@ -51,7 +50,6 @@
       --danger: #F2877C; --danger-soft: #3A1D1D; --warn: #EDB45B; --warn-soft: #382A12; --ok: #5ACCA9; --ok-soft: #12302A;
       --p-rfa: #E5814F; --p-varithena: #A584E6; --p-venaseal: #3DBDB3;
       --g-intake: #DDA840; --g-surgeon: #7E9CF0; --g-postop: #5ACCA9; --g-closed: #DB7F7F;
-    }
   }
   :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   *, *::before, *::after { box-sizing: inherit; }
@@ -82,7 +80,7 @@
   .btn-quiet:hover { background: var(--sunken); }
   .btn-export { background: var(--ok); color: #fff; }
   .btn-export:hover { filter: brightness(1.08); }
-  @media (prefers-color-scheme: dark) { .btn-export { color: #0E1420; } }
+  :root[data-theme="dark"] .btn-export { color: #0E1420; }
   .btn-danger { background: var(--surface); color: var(--danger); border-color: var(--line-strong); }
   .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
   .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
@@ -128,7 +126,7 @@
   .vg .c[data-p="RFA"] { background: var(--p-rfa); border: 0; }
   .vg .c[data-p="Varithena"] { background: var(--p-varithena); border: 0; }
   .vg .c[data-p="Venaseal"] { background: var(--p-venaseal); border: 0; }
-  @media (prefers-color-scheme: dark) { .vg .c { color: #0E1420; } }
+  :root[data-theme="dark"] .vg .c { color: #0E1420; }
   .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
   /* Vein schema editor: mirrored around a midline */
@@ -183,12 +181,46 @@
 
   #sidebar { transition: transform .2s ease; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* Theme toggle */
+  .theme-btn svg.feather { width: 17px; height: 17px; }
+  .login-theme { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 30; background: var(--surface); border: 1px solid var(--line); }
+  :root { transition: background-color .2s; }
+  .shared-pill { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: 1px; }
+
+  /* Compact patient form */
+  .modal .ctl { padding: 4px 8px; min-height: 30px; font-size: 13px; }
+  .modal .lbl { margin-bottom: 2px; font-size: 12px; }
+  .modal .hint { display: block; font-size: 11.5px; margin-top: 2px; color: var(--ok); }
+  .modal textarea.ctl { min-height: 56px; }
+  .modal .btn { padding: 5px 10px; font-size: 12.5px; gap: 5px; }
+  .modal .section-h { margin-bottom: 4px; font-size: 13px; }
+  .modal .err { margin-top: 2px; font-size: 12px; }
+  #recordForm .vtable th { padding: 3px 4px; font-size: 11.5px; }
+  #recordForm .vtable td { padding: 2px 3px; }
+  #recordForm .vtable .mid { width: 64px; }
+  #recordForm .vtable .mid b { font-size: 12.5px; }
+  #recordForm .vtable .mid small { font-size: 10px; line-height: 1.15; }
+  #recordForm .ctl.units { width: 58px; }
+  #recordForm .scroll-x.border { display: inline-block; max-width: 100%; vertical-align: top; }
+  #recordForm .vtable { width: auto; min-width: 0 !important; }
+  #recordForm .vtable select.ctl { width: 132px; }
+  #recordForm input[type="checkbox"] { width: 14px; height: 14px; }
+
+  /* Treatment entries: two per row on wide screens, fields stacked in each */
+  .tx-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 6px; }
+  @media (min-width: 1024px) { .tx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tx-fields { display: grid; grid-template-columns: max-content minmax(0, 14rem); align-items: center; gap: 5px 10px; }
+  .tx-row { display: contents; }
+  .tx-row .lbl { margin: 0; }
+  @media (max-width: 480px) { .tx-fields { grid-template-columns: minmax(0, 1fr); gap: 2px; } .tx-row .lbl { margin-top: 4px; } }
 </style>
 </head>
 <body>
 
 <!-- SIGN-IN -->
 <div id="login" class="min-h-full" hidden>
+  <button class="icon-btn theme-btn login-theme" data-theme-toggle aria-label="Switch theme"></button>
   <div class="min-h-screen grid lg:grid-cols-[1fr_minmax(420px,520px)]">
     <div class="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden" style="background: var(--side); color: #fff;">
       <svg class="absolute -right-24 top-0 h-full opacity-[0.18]" viewBox="0 0 400 900" fill="none" aria-hidden="true">
@@ -276,6 +308,7 @@
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"><i data-feather="search"></i></span>
           <input id="search" type="search" class="ctl" style="padding-left: 32px" placeholder="Search name, BBA ID, notes" aria-label="Search records in this tab">
         </div>
+        <button class="icon-btn theme-btn" data-theme-toggle aria-label="Switch theme"></button>
         <div class="relative">
           <button id="bellBtn" class="icon-btn bell" aria-label="Approval notifications" aria-expanded="false" title="New approvals"><i data-feather="bell"></i><span id="bellCount" class="dot" hidden></span></button>
           <div id="bellPanel" class="bell-panel" hidden></div>
@@ -437,6 +470,8 @@ const TABS = [
     blurb: 'Pre-authorization queue for Dr. Danthuluri. BBA ID is required.' },
   { key: 'PO Vein FU', group: 'postop', type: 'po', nameRequired: true, icon: 'calendar',
     blurb: 'Post-op follow-up at 30 days, 3, 6 and 12 months. BBA ID is required.' },
+  { key: 'Completed Treatment', group: 'postop', type: 'po', nameRequired: true, icon: 'check-square',
+    blurb: 'Patients whose treatment is complete, moved here at the doctor’s request. BBA ID is required.' },
   { key: 'PA DENIED', group: 'closed', type: 'clinical', nameRequired: true, icon: 'x-octagon',
     blurb: 'Prior authorizations that were denied. BBA ID is required.' },
   { key: 'Not Interested Now or excluded', group: 'closed', type: 'clinical', nameRequired: true, icon: 'pause-circle',
@@ -688,6 +723,7 @@ function signIn(email) {
 
 function startSession(email) {
   state.user = email;
+  applyTheme(savedTheme(email) || document.documentElement.dataset.theme, false);
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#userEmail').textContent = email;
@@ -724,7 +760,7 @@ function openSidebar() { $('#sidebar').classList.remove('-translate-x-full'); $(
 function closeSidebar() { $('#sidebar').classList.add('-translate-x-full'); $('#scrim').hidden = true; }
 
 function renderSidebar() {
-  const count = k => state.patients.filter(p => p.category === k).length;
+  const count = k => state.patients.filter(p => inTab(p, k)).length;
   const seen = seenMap();
   const item = (key, label, icon, extra = '', color = '') => `
     <button class="nav-item" data-nav="${esc(key)}" ${state.view === key ? 'aria-current="page"' : ''} ${color ? `style="--nav-color: var(${color})"` : ''}>
@@ -773,6 +809,35 @@ function render() {
   if (kind === 'settings') renderSettings();
   icons();
 }
+
+/* ============================================================
+   Light / dark theme. Remembered per user (and for the sign-in screen) on this computer.
+   ============================================================ */
+const THEME_KEY = 'vct_theme';
+const themeGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const themeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } };
+const systemTheme = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+function savedTheme(user) {
+  return (user && themeGet(`${THEME_KEY}:${String(user).toLowerCase()}`)) || themeGet(THEME_KEY) || null;
+}
+function applyTheme(theme, save) {
+  document.documentElement.dataset.theme = theme;
+  if (save) {
+    themeSet(THEME_KEY, theme);
+    if (state.user) themeSet(`${THEME_KEY}:${String(state.user).toLowerCase()}`, theme);
+  }
+  const next = theme === 'dark' ? 'light' : 'dark';
+  document.querySelectorAll('[data-theme-toggle]').forEach(b => {
+    b.setAttribute('aria-label', `Switch to ${next} mode`);
+    b.title = `Switch to ${next} mode`;
+    b.innerHTML = `<i data-feather="${theme === 'dark' ? 'sun' : 'moon'}"></i>`;
+  });
+  icons();
+  // Chart colors come from the theme, so redraw it
+  if (state.chart) { state.chart.destroy(); state.chart = null; }
+  if (state.user && viewKind() === 'dashboard') renderChart();
+}
+applyTheme(savedTheme() || systemTheme(), false);
 
 /* ============================================================
    Dashboard
@@ -889,7 +954,7 @@ function renderChart() {
    Patient list
    ============================================================ */
 const dash = v => (v === undefined || v === null || v === '') ? '<span class="text-muted">–</span>' : esc(v);
-const idCell = p => p.bbaId ? `<div class="font-semibold">${esc(p.bbaId)}</div>` : `<div class="text-muted italic">No BBA ID</div>`;
+const idCell = p => `<div class="font-semibold whitespace-nowrap">${p.bbaId ? esc(p.bbaId) : '<span class="text-muted italic font-normal">No BBA ID</span>'}${sharedPill(p)}</div>`;
 const dateCell = d => d ? `<span class="whitespace-nowrap">${esc(fmtDate(d))}</span>` : dash();
 const notesCell = p => p.notes ? `<div class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</div>` : dash();
 
@@ -913,6 +978,19 @@ function txList(p) {
   VEIN_KEYS.forEach(vk => { if (p[`${vk}_tx`] && p[`${vk}_tx`] !== 'None') veins[vk] = p[`${vk}_tx`]; });
   return (p.surgeryDate || Object.keys(veins).length) ? [{ id: 'legacy', date: p.surgeryDate || '', postUsDate: '', surgeon: p.surgeon || '', veins }] : [];
 }
+/* Shared patients: a record in Dr. Procter's or Dr. Danthuluri's tab also appears in the other
+   doctor's tab once it has a treatment and that doctor is its surgeon or performed a treatment. */
+const SURGEON_TABS = () => TABS.filter(t => t.surgeonMatch);
+function sharedInto(p) {
+  if (!TAB[p.category]?.surgeonMatch) return [];
+  const tx = txList(p);
+  if (!tx.length) return [];
+  const people = [p.surgeon, ...tx.map(t => t.surgeon)].filter(Boolean);
+  return SURGEON_TABS().filter(t => t.key !== p.category && people.some(s => t.surgeonMatch.test(s))).map(t => t.key);
+}
+const inTab = (p, key) => p.category === key || sharedInto(p).includes(key);
+const sharedPill = p => (TAB[state.view] && p.category !== state.view && inTab(p, state.view))
+  ? `<span class="shared-pill" title="Shared patient. Home tab: ${esc(p.category)}">Shared</span>` : '';
 const txVeins = t => VEIN_KEYS.filter(vk => t.veins?.[vk] && t.veins[vk] !== 'None');
 const txSummary = t => txVeins(t).map(vk => `${vk[0].toUpperCase()} ${vk.split('_')[1].toUpperCase()} ${t.veins[vk]}`).join(', ');
 const latestTx = p => [...txList(p)].filter(t => t.date).sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -968,7 +1046,7 @@ function columns(type) {
 function rowsFor(tabKey) {
   const q = state.search.toLowerCase().trim();
   return state.patients
-    .filter(p => p.category === tabKey)
+    .filter(p => inTab(p, tabKey))
     .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins, p.paStatus, p.initialUsStatus]
       .some(v => String(v || '').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -978,7 +1056,7 @@ function renderList() {
   const tab = TAB[state.view];
   const cols = columns(tab.type);
   const rows = rowsFor(tab.key);
-  const total = state.patients.filter(p => p.category === tab.key).length;
+  const total = state.patients.filter(p => inTab(p, tab.key)).length;
 
   $('#listMeta').textContent = state.search
     ? `${rows.length} of ${total} record${total === 1 ? '' : 's'} match “${state.search}”`
@@ -1017,7 +1095,7 @@ function renderList() {
    Record form
    ============================================================ */
 const field = (label, inner, opts = {}) =>
-  `<label class="block ${opts.cls || ''}"><span class="lbl">${label}${opts.req ? ' <span class="req">*</span>' : opts.opt ? ' <span class="opt">(optional)</span>' : ''}</span>${inner}${opts.err ? `<div class="err" data-err="${opts.err}" hidden></div>` : ''}</label>`;
+  `<label class="block ${opts.cls || ''}"><span class="lbl">${label}${opts.req ? ' <span class="req">*</span>' : opts.opt ? ' <span class="opt">(optional)</span>' : ''}</span>${inner}${opts.hint ? `<span class="hint">${esc(opts.hint)}</span>` : ''}${opts.err ? `<div class="err" data-err="${opts.err}" hidden></div>` : ''}</label>`;
 const input = (name, val, type = 'text', extra = '', cls = 'ctl') =>
   `<input name="${name}" type="${type}" value="${esc(val ?? '')}" class="${cls}" ${extra}>`;
 function select(name, options, val, extra = '', cls = 'ctl') {
@@ -1034,25 +1112,26 @@ function treatmentEditor(r) {
       const vk = `${s.k}_${v.k}`, val = t.veins?.[vk] || 'None';
       return `<td>${select(`tx_${i}_${vk}`, PROCS, val, `data-proc="${esc(val)}" aria-label="Treatment ${i + 1} ${s.label} ${v.label} treatment performed"`, 'ctl proc')}</td>`;
     };
+    const row = (label, inner, opt) => `<label class="tx-row"><span class="lbl">${label}${opt ? ' <span class="opt">(optional)</span>' : ''}</span>${inner}</label>`;
     return `
-      <div class="border rounded-lg p-4 mt-3" style="border-color: var(--line)">
+      <div class="tx-card border rounded-lg p-3" style="border-color: var(--line)">
         <input type="hidden" name="tx_${i}_id" value="${esc(t.id || newTxId())}">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <span class="font-semibold">Treatment ${i + 1}</span>
-          <div class="flex gap-2">
-            <button type="button" class="btn btn-quiet" data-copy-plan="${i}"><i data-feather="copy"></i>Copy procedures from plan</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-semibold text-[13px]">Treatment ${i + 1}</span>
+          <div class="flex gap-1.5">
+            <button type="button" class="btn btn-quiet" data-copy-plan="${i}" title="Copy procedures from the treatment plan"><i data-feather="copy"></i>Copy from plan</button>
             <button type="button" class="btn btn-danger" data-remove-tx="${i}" aria-label="Delete treatment ${i + 1}"><i data-feather="trash-2"></i>Delete</button>
           </div>
         </div>
-        <div class="grid sm:grid-cols-3 gap-4 mb-3">
-          ${field('Treatment date', input(`tx_${i}_date`, t.date, 'date'))}
-          ${field('Post-treatment U/S date', input(`tx_${i}_postUsDate`, t.postUsDate, 'date'))}
-          ${field('Performing surgeon', select(`tx_${i}_surgeon`, [{ v: '', l: 'Select surgeon' }, ...state.surgeons], t.surgeon || ''))}
+        <div class="tx-fields">
+          ${row('Treatment date', input(`tx_${i}_date`, t.date, 'date'))}
+          ${row('Post-treatment U/S date', input(`tx_${i}_postUsDate`, t.postUsDate, 'date'), true)}
+          ${row('Performing surgeon', select(`tx_${i}_surgeon`, [{ v: '', l: 'Select surgeon' }, ...state.surgeons], t.surgeon || ''))}
         </div>
-        <div class="scroll-x thin-scroll border rounded-lg" style="border-color: var(--line)">
-          <table class="vtable" style="min-width:520px">
-            <thead><tr><th style="text-align:right">Right leg: treatment performed</th><th class="mid">Vein</th><th>Left leg: treatment performed</th></tr></thead>
-            <tbody>${VEINS.map(v => `<tr>${cell(SIDES[0], v)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cell(SIDES[1], v)}</tr>`).join('')}</tbody>
+        <div class="scroll-x thin-scroll border rounded-lg mt-2" style="border-color: var(--line)">
+          <table class="vtable">
+            <thead><tr><th style="text-align:right">Right leg</th><th class="mid">Vein</th><th>Left leg</th></tr></thead>
+            <tbody>${VEINS.map(v => `<tr>${cell(SIDES[0], v)}<td class="mid" title="${v.full}"><b>${v.label}</b></td>${cell(SIDES[1], v)}</tr>`).join('')}</tbody>
           </table>
         </div>
       </div>`;
@@ -1063,8 +1142,8 @@ function treatmentEditor(r) {
       <div class="section-h mb-0"><i data-feather="scissors"></i>Treatments</div>
       <button type="button" class="btn btn-quiet" data-add-tx><i data-feather="plus"></i>Add treatment</button>
     </div>
-    <p class="text-muted text-[12.5px] mt-1">Add one entry per treatment session. Units are recorded once, in the treatment plan above.</p>
-    ${list.length ? list.map(one).join('') : '<p class="text-muted text-[13px] mt-3 border rounded-lg p-4" style="border-color: var(--line)">No treatments recorded yet. Choose Add treatment after each session.</p>'}
+    <p class="text-muted text-[12px]">Add one entry per treatment session. Units are recorded once, in the treatment plan above.</p>
+    ${list.length ? `<div class="tx-grid">${list.map(one).join('')}</div>` : '<p class="text-muted text-[12.5px] mt-2 border rounded-lg p-2.5" style="border-color: var(--line)">No treatments recorded yet. Choose Add treatment after each session.</p>'}
     ${legacy ? `<p class="text-[12.5px] mt-3 text-muted"><b>Earlier POST AB US status</b> (from before post-treatment U/S dates were added; kept for reference): ${esc(legacy)}</p>` : ''}`;
 }
 
@@ -1079,7 +1158,7 @@ function veinSchemaEditor(r) {
     return (mirror ? tds.reverse() : tds).join('');
   };
   return `
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
       <div class="section-h mb-0"><i data-feather="activity"></i>Vein treatment plan</div>
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
         ${PROCS.slice(1).map(p => `<span class="inline-flex items-center gap-1.5"><span class="swatch" style="background: var(--p-${p.toLowerCase()})"></span>${p}</span>`).join('')}
@@ -1100,7 +1179,7 @@ function veinSchemaEditor(r) {
           </tr>
         </thead>
         <tbody>
-          ${VEINS.map(v => `<tr>${cellsFor(SIDES[0], v, true)}<td class="mid"><b>${v.label}</b><small>${v.full}</small></td>${cellsFor(SIDES[1], v, false)}</tr>`).join('')}
+          ${VEINS.map(v => `<tr>${cellsFor(SIDES[0], v, true)}<td class="mid" title="${v.full}"><b>${v.label}</b></td>${cellsFor(SIDES[1], v, false)}</tr>`).join('')}
         </tbody>
       </table>
     </div>`;
@@ -1108,56 +1187,68 @@ function veinSchemaEditor(r) {
 
 function milestonesEditor(r) {
   return `
-    <div class="section-h"><i data-feather="calendar"></i>Post-op follow-up</div>
-    <div class="grid sm:grid-cols-2 gap-3">
+    <div class="section-h"><i data-feather="calendar"></i>Post-op follow-up <span class="font-normal text-muted text-[12.5px]">(optional: a record saves without any appointments)</span></div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
       ${MILESTONES.map(m => `
-        <div class="border rounded-lg p-3" style="border-color: var(--line)">
-          <div class="flex items-center justify-between gap-2 mb-2">
-            <span class="font-semibold text-[13.5px]">${m.label}</span>
-            <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" name="${m.k}Done" ${r[m.k + 'Done'] ? 'checked' : ''}>Completed</label>
+        <div class="border rounded-lg p-2" style="border-color: var(--line)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-semibold text-[12.5px]">${m.label}</span>
+            <label class="flex items-center gap-1 text-[12px]"><input type="checkbox" name="${m.k}Done" ${r[m.k + 'Done'] ? 'checked' : ''}>Completed</label>
           </div>
           ${input(m.k, r[m.k], 'date', `aria-label="${m.label} date"`)}
         </div>`).join('')}
     </div>
-    <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
-      <span class="text-muted text-[12.5px]">Have a procedure date? Fill all four milestone dates from it.</span>
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+      <span class="text-muted text-[12px]">Have a procedure date? Fill all four milestone dates from it.</span>
       <div class="flex items-center gap-2">
         <input type="date" id="procDateHelper" class="ctl" style="width:auto" aria-label="Procedure date" value="${esc(latestTx(r)?.date || '')}">
         <button type="button" class="btn btn-quiet" data-fill-ms>Fill dates</button>
       </div>
     </div>
-    <div class="border rounded-lg p-3 mt-3" style="border-color: var(--line)">
-      <label class="flex items-center gap-2 font-semibold text-[13.5px] mb-2"><input type="checkbox" name="poNewVeinsFlag" ${r.poNewVeinsFlag ? 'checked' : ''}>New veins to treat</label>
+    <div class="border rounded-lg p-2 mt-2" style="border-color: var(--line)">
+      <label class="flex items-center gap-2 font-semibold text-[12.5px] mb-1"><input type="checkbox" name="poNewVeinsFlag" ${r.poNewVeinsFlag ? 'checked' : ''}>New veins to treat</label>
       ${input('poNewVeins', r.poNewVeins, 'text', 'placeholder="Which veins, and what was found" aria-label="New veins details"')}
     </div>`;
 }
 
+const YES_NO_NA = [{ v: '', l: 'Select' }, 'Yes', 'No', 'N/A'];
 function formBody(r) {
   const tab = TAB[r.category];
-  const surgeonOpts = ['', ...state.surgeons];
+  const G = 'grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-2';
+  const docs = `
+      ${field('US Chart Billed', select('usChartBilled', YES_NO_NA, r.usChartBilled || ''))}
+      ${field('Letter of Med Nec', select('letterMedNec', YES_NO_NA, r.letterMedNec || ''))}
+      ${field('US F/U', select('usFollowUp', YES_NO_NA, r.usFollowUp || ''))}`;
   let html = `
-    <div class="grid sm:grid-cols-3 gap-4">
+    <div class="${G}">
       ${field('Tab', select('category', TABS.map(t => t.key), r.category))}
       ${field('BBA ID', input('bbaId', r.bbaId, 'text', 'autocomplete="off"'), { req: tab.nameRequired, opt: !tab.nameRequired, err: 'bbaId' })}
-      ${field('Patient name', input('name', r.name, 'text', 'autocomplete="off"'), { opt: true })}
+      ${field('Patient name', input('name', r.name, 'text', 'autocomplete="off"'), { opt: true, cls: 'col-span-2' })}
     </div>`;
   if (tab.type === 'promo') {
     html += `
-      <div class="grid sm:grid-cols-3 gap-4 mt-4">
-        ${field('Insurance', input('insurance', r.insurance, 'text', 'placeholder="e.g. BCBS, Aetna, Medicare"'))}
-        ${field('Location', select('location', LOCATIONS, r.location || state.settings.defaultLocation))}
-        ${field('IV or Vanquish', select('ivVanquish', IV_OPTIONS, r.ivVanquish || ''))}
-        ${field('Date promo', input('datePromo', r.datePromo, 'date'))}
-        ${field('US date', input('usDate', r.usDate, 'date'), {})}
-        ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}
-      </div>`;
+    <div class="${G} mt-3">
+      ${field('Insurance', input('insurance', r.insurance, 'text', 'placeholder="e.g. BCBS, Aetna, Medicare"'))}
+      ${field('Location', select('location', LOCATIONS, r.location || state.settings.defaultLocation))}
+      ${field('IV or Vanquish', select('ivVanquish', IV_OPTIONS, r.ivVanquish || ''))}
+      ${field('Date promo', input('datePromo', r.datePromo, 'date'))}
+      ${field('US date', input('usDate', r.usDate, 'date'))}
+      ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}${docs}
+    </div>`;
   } else {
-    html += `<div class="grid sm:grid-cols-3 gap-4 mt-4">${field('Surgeon', select('surgeon', surgeonOpts, r.surgeon || ''))}${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''))}${r.paStatus === 'Approved' && r.paApprovedAt ? `<div class="text-muted text-[12.5px] self-end pb-2">Approved ${esc(new Date(r.paApprovedAt).toLocaleDateString())}${r.paApprovedBy ? ' by ' + esc(r.paApprovedBy) : ''}</div>` : '<div></div>'}${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}</div>`;
-    html += `<div class="mt-6">${veinSchemaEditor(r)}</div>`;
-    html += `<div class="mt-6">${treatmentEditor(r)}</div>`;
-    if (tab.type === 'po') html += `<div class="mt-6">${milestonesEditor(r)}</div>`;
+    html += `
+    <div class="${G} mt-3">
+      ${field('Surgeon', select('surgeon', ['', ...state.surgeons], r.surgeon || ''))}
+      ${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''), { hint: r.paStatus === 'Approved' && r.paApprovedAt ? `Approved ${new Date(r.paApprovedAt).toLocaleDateString()}${r.paApprovedBy ? ' by ' + r.paApprovedBy : ''}` : '' })}
+      ${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}
+      ${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}
+      ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}${docs}
+    </div>`;
+    html += `<div class="mt-4">${veinSchemaEditor(r)}</div>`;
+    html += `<div class="mt-4">${treatmentEditor(r)}</div>`;
+    if (tab.type === 'po') html += `<div class="mt-4">${milestonesEditor(r)}</div>`;
   }
-  html += `<div class="mt-6">${field('Notes', `<textarea name="notes" class="ctl" placeholder="Authorization status, calls, reminders">${esc(r.notes || '')}</textarea>`)}</div>`;
+  html += `<div class="mt-4">${field('Notes', `<textarea name="notes" class="ctl" placeholder="Authorization status, calls, reminders">${esc(r.notes || '')}</textarea>`)}</div>`;
   return html;
 }
 
@@ -1205,15 +1296,15 @@ function openRecord(id, presetCategory, focusError) {
     : '';
   showModal(`
     <form id="recordForm" class="modal max-w-[980px]" novalidate>
-      <div class="flex items-center justify-between gap-3 px-6 py-4 border-b" style="border-color: var(--line)">
+      <div class="flex items-center justify-between gap-3 px-5 py-2.5 border-b" style="border-color: var(--line)">
         <div>
-          <h2 class="text-[17px] font-bold tracking-tight">${existing ? 'Edit record' : 'Add record'}</h2>
+          <h2 class="text-[16px] font-bold tracking-tight">${existing ? 'Edit record' : 'Add record'}</h2>
           <p class="text-muted text-[12.5px]" id="formTabNote"></p>
         </div>
         <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
       </div>
-      <div class="px-6 py-5" id="formBody">${formBody(draft)}</div>
-      <div class="px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--line); background: var(--sunken); border-radius: 0 0 12px 12px">
+      <div class="px-5 py-3" id="formBody">${formBody(draft)}</div>
+      <div class="px-5 py-2.5 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--line); background: var(--sunken); border-radius: 0 0 12px 12px">
         <div class="flex items-center gap-3 flex-wrap">
           ${existing ? `<button type="button" class="btn btn-danger" data-del="${esc(existing.id)}"><i data-feather="trash-2"></i>Delete record</button>` : ''}
           <p class="text-muted text-[12.5px]">${meta}</p>
@@ -1467,17 +1558,20 @@ function exportColumns(type) {
   const cols = [['BBA ID', p => p.bbaId || '']];
   if (type === 'promo') {
     cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
-      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || ''], ['US Remap Date', p => p.usRemapDate || '']);
+      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || ''], ['US Remap Date', p => p.usRemapDate || ''],
+      ['US Chart Billed', p => p.usChartBilled || ''], ['Letter of Med Nec', p => p.letterMedNec || ''], ['US F/U', p => p.usFollowUp || '']);
   } else {
     cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
       ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''], ['US Remap Date', p => p.usRemapDate || ''],
+      ['US Chart Billed', p => p.usChartBilled || ''], ['Letter of Med Nec', p => p.letterMedNec || ''], ['US F/U', p => p.usFollowUp || ''],
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
       const vk = `${s.k}_${v.k}`, pre = `${s.k.toUpperCase()} ${v.label}`;
       cols.push([`${pre} Procedure`, p => p[`${vk}_proc`] || 'None'],
         [`${pre} Units`, p => hasUnits(p[`${vk}_units`]) ? Number(p[`${vk}_units`]) : '']);
     }));
-    cols.push(['Treatments', p => txList(p).length || ''],
+    cols.push(['Also Shown In', p => sharedInto(p).join(', ')],
+      ['Treatments', p => txList(p).length || ''],
       ['Treatment Dates', p => txList(p).map(t => t.date).filter(Boolean).join('; ')],
       ['Post-Treatment US Dates', p => txList(p).map(t => t.postUsDate).filter(Boolean).join('; ')],
       ['Treatments Performed', p => txList(p).map(t => `${t.date || 'no date'}${t.surgeon ? ` (${t.surgeon})` : ''}: ${txSummary(t) || 'none entered'}`).join('; ')],
@@ -1740,8 +1834,10 @@ function bind() {
 
   // Rebuild chart colors when the system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (state.chart) { state.chart.destroy(); state.chart = null; }
-    if (state.user && viewKind() === 'dashboard') renderChart();
+    if (!savedTheme(state.user)) applyTheme(systemTheme(), false);
+  });
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-theme-toggle]')) applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
   });
 }
 
