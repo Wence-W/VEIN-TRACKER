@@ -214,6 +214,20 @@
   .tx-row { display: contents; }
   .tx-row .lbl { margin: 0; }
   @media (max-width: 480px) { .tx-fields { grid-template-columns: minmax(0, 1fr); gap: 2px; } .tx-row .lbl { margin-top: 4px; } }
+
+  .notes-list { display: grid; gap: 6px; margin-top: 6px; }
+  .note-item { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .note-item textarea.ctl { min-height: 44px; margin-top: 2px; }
+  .note-history { max-height: 240px; overflow-y: auto; display: grid; gap: 6px; }
+  .note-history .note-item { background: var(--sunken); }
+
+  .remap-field { display: flex; flex-direction: column; gap: 4px; }
+  .remap-field .lbl { margin-bottom: 0; }
+  .remap-row { display: flex; align-items: center; gap: 4px; }
+  .remap-row .ctl { flex: 1; min-width: 0; }
+  .add-remap { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--accent); padding: 1px 2px; border-radius: 4px; }
+  .add-remap:hover { text-decoration: underline; }
+  .add-remap svg.feather { width: 13px; height: 13px; }
 </style>
 </head>
 <body>
@@ -956,7 +970,63 @@ function renderChart() {
 const dash = v => (v === undefined || v === null || v === '') ? '<span class="text-muted">–</span>' : esc(v);
 const idCell = p => `<div class="font-semibold whitespace-nowrap">${p.bbaId ? esc(p.bbaId) : '<span class="text-muted italic font-normal">No BBA ID</span>'}${sharedPill(p)}</div>`;
 const dateCell = d => d ? `<span class="whitespace-nowrap">${esc(fmtDate(d))}</span>` : dash();
-const notesCell = p => p.notes ? `<div class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</div>` : dash();
+/* ---------- US remaps: a record can have several remap dates ---------- */
+const newRemapId = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// Older records kept one usRemapDate. Read it as the first remap.
+function remapList(p) {
+  if (Array.isArray(p.usRemaps)) return p.usRemaps;
+  return p.usRemapDate ? [{ id: 'legacy', date: p.usRemapDate }] : [];
+}
+const remapDates = p => remapList(p).map(x => x.date).filter(Boolean).sort();
+function remapField(r) {
+  const list = remapList(r);
+  const rows = list.length ? list : [{ id: newRemapId(), date: '' }];
+  return `<div class="remap-field">
+    <span class="lbl">US Remap Date${rows.length > 1 ? 's' : ''}</span>
+    ${rows.map((x, i) => `<div class="remap-row">
+      <input type="hidden" name="remap_${i}_id" value="${esc(x.id || newRemapId())}">
+      ${input(`remap_${i}_date`, x.date, 'date', `aria-label="US remap date ${i + 1}"`)}
+      ${rows.length > 1 ? `<button type="button" class="icon-btn danger" style="width:26px;height:26px" data-remove-remap="${i}" aria-label="Remove remap date ${i + 1}" title="Remove this remap date"><i data-feather="x"></i></button>` : ''}
+    </div>`).join('')}
+    <button type="button" class="add-remap" data-add-remap><i data-feather="plus"></i>Add remap</button>
+  </div>`;
+}
+/* ---------- Notes: a record can have many, each with its own date and author ---------- */
+const newNoteId = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// Older records kept one notes text. Read it as the first note.
+function notesList(p) {
+  if (Array.isArray(p.noteLog)) return p.noteLog;
+  return p.notes ? [{ id: 'legacy', text: p.notes, at: p.createdAt || p.updatedAt || 0, by: '' }] : [];
+}
+const notesNewestFirst = p => [...notesList(p)].sort((a, b) => (b.at || 0) - (a.at || 0));
+const notesText = list => [...list].sort((a, b) => (b.at || 0) - (a.at || 0)).map(n => n.text).filter(Boolean).join(' | ');
+const noteWhen = n => n.at ? new Date(n.at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Earlier note';
+const notesCell = p => {
+  const list = notesNewestFirst(p);
+  if (!list.length) return dash();
+  const tip = list.map(n => `${noteWhen(n)}${n.by ? ' (' + n.by + ')' : ''}: ${n.text}`).join('\n');
+  return `<div class="notes-cell" title="${esc(tip)}">${esc(list[0].text)}</div>${list.length > 1 ? `<div class="text-muted text-[11.5px]">+${list.length - 1} more note${list.length > 2 ? 's' : ''}</div>` : ''}`;
+};
+function notesEditor(r) {
+  const list = notesNewestFirst(r);
+  const one = (n, i) => `
+    <div class="note-item">
+      <input type="hidden" name="note_${i}_id" value="${esc(n.id || newNoteId())}">
+      <input type="hidden" name="note_${i}_at" value="${esc(n.at || '')}">
+      <input type="hidden" name="note_${i}_by" value="${esc(n.by || '')}">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-muted text-[11.5px]">${n.at ? esc(noteWhen(n)) : 'New note'}${n.by ? ' · ' + esc(n.by) : ''}</span>
+        <button type="button" class="icon-btn danger" style="width:26px;height:26px" data-remove-note="${i}" aria-label="Delete note" title="Delete note"><i data-feather="trash-2"></i></button>
+      </div>
+      <textarea name="note_${i}_text" class="ctl" rows="2" aria-label="Note" placeholder="Authorization status, calls, reminders">${esc(n.text || '')}</textarea>
+    </div>`;
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="section-h mb-0"><i data-feather="file-text"></i>Notes ${list.length ? `<span class="font-normal text-muted text-[12px]">(${list.length})</span>` : ''}</div>
+      <button type="button" class="btn btn-quiet" data-add-note><i data-feather="plus"></i>Add note</button>
+    </div>
+    <div class="notes-list">${list.length ? list.map(one).join('') : '<p class="text-muted text-[12.5px] border rounded-lg p-2.5" style="border-color: var(--line)">No notes yet. Choose Add note.</p>'}</div>`;
+}
 
 const VEIN_HEAD = `<div class="vg" aria-hidden="true"><span></span>${VEINS.map(v => `<span class="ax">${v.label}</span>`).join('')}</div><div class="mt-0.5">Vein map</div>`;
 function veinGlyph(p) {
@@ -1047,7 +1117,7 @@ function rowsFor(tabKey) {
   const q = state.search.toLowerCase().trim();
   return state.patients
     .filter(p => inTab(p, tabKey))
-    .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, p.notes, p.location, p.poNewVeins, p.paStatus, p.initialUsStatus]
+    .filter(p => !q || [p.bbaId, p.name, p.insurance, p.surgeon, ...notesList(p).map(n => n.text), p.location, p.poNewVeins, p.paStatus, p.initialUsStatus]
       .some(v => String(v || '').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -1233,7 +1303,7 @@ function formBody(r) {
       ${field('IV or Vanquish', select('ivVanquish', IV_OPTIONS, r.ivVanquish || ''))}
       ${field('Date promo', input('datePromo', r.datePromo, 'date'))}
       ${field('US date', input('usDate', r.usDate, 'date'))}
-      ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}${docs}
+      ${remapField(r)}${docs}
     </div>`;
   } else {
     html += `
@@ -1242,13 +1312,13 @@ function formBody(r) {
       ${field('Authorization status', select('paStatus', PA_STATUS, r.paStatus || ''), { hint: r.paStatus === 'Approved' && r.paApprovedAt ? `Approved ${new Date(r.paApprovedAt).toLocaleDateString()}${r.paApprovedBy ? ' by ' + r.paApprovedBy : ''}` : '' })}
       ${field('Initial U/S', select('initialUsStatus', INITIAL_US, r.initialUsStatus || ''))}
       ${field('Initial U/S date', input('initialUsDate', r.initialUsDate, 'date'))}
-      ${field('US Remap Date', input('usRemapDate', r.usRemapDate, 'date'))}${docs}
+      ${remapField(r)}${docs}
     </div>`;
     html += `<div class="mt-4">${veinSchemaEditor(r)}</div>`;
     html += `<div class="mt-4">${treatmentEditor(r)}</div>`;
     if (tab.type === 'po') html += `<div class="mt-4">${milestonesEditor(r)}</div>`;
   }
-  html += `<div class="mt-4">${field('Notes', `<textarea name="notes" class="ctl" placeholder="Authorization status, calls, reminders">${esc(r.notes || '')}</textarea>`)}</div>`;
+  html += `<div class="mt-4">${notesEditor(r)}</div>`;
   return html;
 }
 
@@ -1260,6 +1330,34 @@ function readForm(form) {
     else if (el.type === 'number') out[el.name] = el.value === '' ? '' : Number(el.value);
     else out[el.name] = el.value.trim();
   });
+  // Collect US remap dates (remap_<n>_<field>)
+  const rm = {};
+  for (const k of Object.keys(out)) {
+    const m = k.match(/^remap_(\d+)_(id|date)$/);
+    if (!m) continue;
+    (rm[m[1]] ||= {})[m[2]] = out[k];
+    delete out[k];
+  }
+  if (form.querySelector('[data-add-remap]')) {
+    out.usRemaps = Object.keys(rm).sort((a, b) => a - b).map(i => rm[i]).filter(x => x.date)
+      .map(x => ({ id: x.id || newRemapId(), date: x.date })).sort((a, b) => a.date.localeCompare(b.date));
+    out.usRemapDate = out.usRemaps.length ? out.usRemaps[out.usRemaps.length - 1].date : ''; // latest, for older views
+  }
+  // Collect note entries (note_<n>_<field>); new ones are stamped with the time and author
+  const nt = {};
+  for (const k of Object.keys(out)) {
+    const m = k.match(/^note_(\d+)_(id|at|by|text)$/);
+    if (!m) continue;
+    (nt[m[1]] ||= {})[m[2]] = out[k];
+    delete out[k];
+  }
+  if (form.querySelector('[data-add-note]')) {
+    const now = Date.now();
+    out.noteLog = Object.keys(nt).sort((a, b) => a - b).map(i => nt[i])
+      .filter(n => (n.text || '').trim())
+      .map(n => ({ id: n.id || newNoteId(), text: n.text.trim(), at: Number(n.at) || now, by: n.by || state.user }));
+    out.notes = notesText(out.noteLog); // plain-text copy for older views
+  }
   // Collect treatment entries (tx_<n>_<field>) into an array
   const tx = {};
   for (const k of Object.keys(out)) {
@@ -1363,16 +1461,21 @@ function saveRecord(form) {
 /* Quick notes */
 function openNotes(id) {
   const p = state.patients.find(x => x.id === id); if (!p) return;
+  const list = notesNewestFirst(p);
   showModal(`
-    <form id="notesForm" class="modal max-w-[560px]" data-id="${p.id}" novalidate>
-      <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color: var(--line)">
-        <div><h2 class="text-[17px] font-bold">Notes</h2><p class="text-muted text-[12.5px]">${esc(recLabel(p))}, ${esc(p.category)}</p></div>
+    <form id="notesForm" class="modal max-w-[560px]" data-id="${esc(p.id)}" novalidate>
+      <div class="flex items-center justify-between px-5 py-2.5 border-b" style="border-color: var(--line)">
+        <div><h2 class="text-[16px] font-bold">Notes</h2><p class="text-muted text-[12.5px]">${esc(recLabel(p))}, ${esc(p.category)}</p></div>
         <button type="button" class="icon-btn" data-close aria-label="Close"><i data-feather="x"></i></button>
       </div>
-      <div class="p-6"><textarea name="notes" class="ctl" style="min-height:180px" aria-label="Notes">${esc(p.notes || '')}</textarea></div>
-      <div class="px-6 pb-5 flex justify-end gap-2">
+      <div class="px-5 py-3">
+        <label class="block"><span class="lbl">Add a note</span><textarea name="newNote" class="ctl" style="min-height:80px" placeholder="Authorization status, calls, reminders"></textarea></label>
+        <div class="err" id="noteErr" hidden></div>
+        ${list.length ? `<div class="lbl mt-3">Earlier notes (${list.length})</div><div class="note-history">${list.map(n => `<div class="note-item"><div class="text-muted text-[11.5px]">${esc(noteWhen(n))}${n.by ? ' · ' + esc(n.by) : ''}</div><div class="text-[13px] whitespace-pre-wrap">${esc(n.text)}</div></div>`).join('')}</div>` : ''}
+      </div>
+      <div class="px-5 pb-4 flex justify-end gap-2">
         <button type="button" class="btn btn-quiet" data-close>Cancel</button>
-        <button class="btn btn-primary"><i data-feather="check"></i>Save notes</button>
+        <button class="btn btn-primary"><i data-feather="plus"></i>Add note</button>
       </div>
     </form>`);
   $('#notesForm textarea').focus();
@@ -1558,11 +1661,11 @@ function exportColumns(type) {
   const cols = [['BBA ID', p => p.bbaId || '']];
   if (type === 'promo') {
     cols.push(['Insurance', p => p.insurance || ''], ['Location', p => p.location || ''], ['Date Promo', p => p.datePromo || ''],
-      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || ''], ['US Remap Date', p => p.usRemapDate || ''],
+      ['IV or Vanquish', p => p.ivVanquish || ''], ['US Date', p => p.usDate || ''], ['US Remap Dates', p => remapDates(p).join('; ')],
       ['US Chart Billed', p => p.usChartBilled || ''], ['Letter of Med Nec', p => p.letterMedNec || ''], ['US F/U', p => p.usFollowUp || '']);
   } else {
     cols.push(['Surgeon', p => p.surgeon || ''], ['Authorization Status', p => p.paStatus || ''],
-      ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''], ['US Remap Date', p => p.usRemapDate || ''],
+      ['Initial US', p => p.initialUsStatus || ''], ['Initial US Date', p => p.initialUsDate || ''], ['US Remap Dates', p => remapDates(p).join('; ')],
       ['US Chart Billed', p => p.usChartBilled || ''], ['Letter of Med Nec', p => p.letterMedNec || ''], ['US F/U', p => p.usFollowUp || ''],
       ['Approved On', p => p.paStatus === 'Approved' && p.paApprovedAt ? new Date(p.paApprovedAt).toLocaleDateString() : '']);
     SIDES.forEach(s => VEINS.forEach(v => {
@@ -1581,7 +1684,7 @@ function exportColumns(type) {
       cols.push(['New Veins To Treat', p => p.poNewVeinsFlag ? 'Yes' : 'No'], ['New Veins Details', p => p.poNewVeins || '']);
     }
   }
-  cols.push(['Notes', p => p.notes || ''], ['Last Updated', p => p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ''], ['Updated By', p => p.updatedBy || '']);
+  cols.push(['Notes', p => notesNewestFirst(p).map(n => `${n.at ? new Date(n.at).toLocaleDateString() : 'Earlier'}${n.by ? ' (' + n.by + ')' : ''}: ${n.text}`).join('\n')], ['Last Updated', p => p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ''], ['Updated By', p => p.updatedBy || '']);
   return cols;
 }
 
@@ -1687,6 +1790,41 @@ function bind() {
     if (t.closest('[data-add]')) { openRecord(null); return; }
     if (t.closest('[data-clear-search]')) { state.search = ''; $('#search').value = ''; renderList(); icons(); return; }
     if (t.closest('[data-close]') || t.matches('[data-backdrop]')) { closeModal(); return; }
+    if (t.closest('[data-add-remap]') || t.closest('[data-remove-remap]')) {
+      const form = $('#recordForm');
+      const rows = [...form.querySelectorAll('.remap-row')].map((el, i) => ({ id: form.querySelector(`[name="remap_${i}_id"]`).value, date: form.querySelector(`[name="remap_${i}_date"]`).value }));
+      draft = { ...draft, ...readForm(form) };
+      const del = t.closest('[data-remove-remap]');
+      if (del) rows.splice(+del.dataset.removeRemap, 1); else rows.push({ id: newRemapId(), date: '' });
+      draft.usRemaps = rows;
+      $('#formBody').innerHTML = formBody(draft);
+      updateFormNote();
+      icons();
+      if (!del) { const d = form.querySelectorAll('[name^="remap_"][name$="_date"]'); d[d.length - 1]?.focus(); }
+      return;
+    }
+    if (t.closest('[data-add-note]') || t.closest('[data-remove-note]')) {
+      const form = $('#recordForm');
+      const vals = readForm(form);
+      draft = { ...draft, ...vals };
+      // keep empty new notes while editing
+      const notes = [...form.querySelectorAll('.note-item')].map((el, i) => ({
+        id: form.querySelector(`[name="note_${i}_id"]`).value, at: Number(form.querySelector(`[name="note_${i}_at"]`).value) || 0,
+        by: form.querySelector(`[name="note_${i}_by"]`).value, text: form.querySelector(`[name="note_${i}_text"]`).value
+      }));
+      const rm = t.closest('[data-remove-note]');
+      if (rm) {
+        const i = +rm.dataset.removeNote;
+        if (notes[i]?.text.trim() && !await askConfirm('Delete this note? It is removed for everyone when you choose Save record.', { title: 'Delete note', confirmLabel: 'Delete note', danger: true })) return;
+        notes.splice(i, 1);
+      } else notes.unshift({ id: newNoteId(), at: Date.now(), by: state.user, text: '' });
+      draft.noteLog = notes;
+      $('#formBody').innerHTML = formBody(draft);
+      updateFormNote();
+      icons();
+      if (!rm) form.querySelector('[name="note_0_text"]')?.focus();
+      return;
+    }
     if (t.closest('[data-add-tx]') || t.closest('[data-remove-tx]')) {
       const form = $('#recordForm');
       draft = { ...draft, ...readForm(form) };
@@ -1764,9 +1902,14 @@ function bind() {
     if (e.target.id === 'recordForm') { e.preventDefault(); saveRecord(e.target); }
     if (e.target.id === 'notesForm') {
       e.preventDefault();
+      const text = e.target.elements.newNote.value.trim();
+      if (!text) { const er = $('#noteErr'); er.textContent = 'Type a note first.'; er.hidden = false; e.target.elements.newNote.focus(); return; }
       const p = state.patients.find(x => x.id === e.target.dataset.id);
-      if (p) { p.notes = e.target.elements.notes.value.trim(); p.updatedAt = Date.now(); p.updatedBy = state.user; savePatients(); }
-      closeModal(); toast('Notes saved'); render();
+      if (p) {
+        p.noteLog = [{ id: newNoteId(), text, at: Date.now(), by: state.user }, ...notesList(p)];
+        p.notes = notesText(p.noteLog); p.updatedAt = Date.now(); p.updatedBy = state.user; savePatients();
+      }
+      closeModal(); toast('Note added'); render();
     }
   });
   document.addEventListener('keydown', e => {
